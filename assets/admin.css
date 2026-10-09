@@ -1,0 +1,35 @@
+/* StoreCanvas Lite admin + front scaffold */
+.sclt-options { margin: 1em 0; }
+.sclt-option-field { margin: 0.5em 0; }
+.sclt-option-heading { margin: 1em 0 0.5em; }
+.sclt-file-hint { display: block; font-size: 0.85em; color: #666; }
+.sclt-order-item-meta { font-size: 12px; }
+#sclt_product_data textarea { font-size: 12px; }
+
+/* Builder rows.
+   WooCommerce's options-panel CSS floats every label to a fixed 150px column
+   (.woocommerce_options_panel label { float:left; width:150px; }), which
+   stacks the builder's inline labels on top of each other. Reset that inside
+   the builder so rows lay out as wrapping inline controls. */
+.sclt-builder .sclt-row { margin: 6px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.woocommerce_options_panel .sclt-builder label,
+.sclt-builder label {
+	float: none !important;
+	width: auto !important;
+	margin: 0 8px 0 0 !important;
+	padding: 0 !important;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	white-space: nowrap;
+}
+.woocommerce_options_panel .sclt-builder input[type="text"],
+.woocommerce_options_panel .sclt-builder input[type="number"],
+.woocommerce_options_panel .sclt-builder select {
+	float: none !important;
+	width: auto !important;
+	min-width: 60px;
+}
+.sclt-builder .sclt-field-choices { min-width: 220px; }
+.sclt-builder .sclt-field-label { min-width: 140px; }
+.sclt-option-field[data-show-if-field] { transition: opacity .15s; }
