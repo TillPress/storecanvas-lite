@@ -17,19 +17,11 @@
 	}
 
 	function fieldTypes() {
-		try {
-			return JSON.parse($('#sclt-field-types').text() || '{}');
-		} catch (e) {
-			return {};
-		}
+		return ( window.scltBuilderTypes && window.scltBuilderTypes.fields ) || {};
 	}
 
 	function priceTypes() {
-		try {
-			return JSON.parse($('#sclt-price-types').text() || '{}');
-		} catch (e) {
-			return {};
-		}
+		return ( window.scltBuilderTypes && window.scltBuilderTypes.prices ) || {};
 	}
 
 	/* ---- Fields ---- */
@@ -39,6 +31,7 @@
 		var prices = priceTypes();
 		var $list = $('#sclt-fields-list').empty();
 		fields.forEach(function (f) {
+			if (!f.id) f.id = uid();
 			var typeOpts = Object.keys(types)
 				.map(function (k) {
 					return (
@@ -89,6 +82,9 @@
 					'<input type="hidden" class="sclt-field-id" value="' +
 					esc(f.id || uid()) +
 					'" />' +
+					'<span class="sclt-field-id-show" style="float:right;color:#50575e;">Field ID <code class="sclt-field-id-code" title="Use this in another field\'s Show if field box">' +
+					esc(f.id || '') +
+					'</code></span>' +
 					'<label>Label <input type="text" class="sclt-field-label" value="' +
 					esc(f.label || '') +
 					'" /></label> ' +
@@ -141,6 +137,8 @@
 					'</div>'
 			);
 			$row.data('scltChoices', Array.isArray(f.choices) ? f.choices : []);
+			// Multi-rule conditions are not editable here; keep them so a builder save never drops them.
+			$row.data('scltConditions', f.conditions && f.conditions.rules ? f.conditions : null);
 			$list.append($row);
 		});
 	}
@@ -195,6 +193,9 @@
 						var p = prevChoices[i];
 						if (p && typeof p === 'object' && (p.label || p.value) === c.label && p.value) {
 							c.value = p.value;
+							if (p.id) c.id = p.id;
+							if (p.stock_qty_orig != null && p.stock_qty_orig !== '') c.stock_qty_orig = p.stock_qty_orig;
+							else if (p.stock_qty != null && p.stock_qty !== '') c.stock_qty_orig = p.stock_qty;
 							break;
 						}
 					}
@@ -224,6 +225,8 @@
 			if (roles) row.roles_allowed = roles.split(/[\s,]+/).filter(Boolean);
 			var vars = ($r.find('.sclt-field-variations').val() || '').trim();
 			if (vars) row.variation_ids = vars.split(/[\s,]+/).map(function (x) { return parseInt(x, 10); }).filter(Boolean);
+			var cond = $r.data('scltConditions');
+			if (cond) row.conditions = cond;
 			if (showIfField) {
 				row.show_if = { field: showIfField, value: showIfValue };
 			}

@@ -36,7 +36,10 @@
 			case 'percent':
 				return base * (amount / 100);
 			case 'qty':
-				return amount * (parseFloat(value) || 0);
+				// Same rule as the server (SCLT_Cart_Order::sanitize_qty): plain digits only, whole units, capped.
+				var q = String(value == null ? '' : value).trim();
+				if (!/^\d+(\.\d+)?$/.test(q)) return 0;
+				return amount * Math.min(10000, Math.floor(parseFloat(q)));
 			case 'per_char':
 				return amount * String(value).length;
 			default:

@@ -3,7 +3,7 @@
  * Plugin Name:       StoreCanvas Lite
  * Plugin URI:        https://tillpress.com/storecanvas/
  * Description:       Free WooCommerce product options: 15 field types, conditional logic, per-choice/lookup, percent, quantity and per-character pricing, and per-choice option stock.
- * Version:           1.0.1
+ * Version:           1.0.12
  * Author:            Tillpress
  * Author URI:        https://tillpress.com
  * Requires at least: 6.2
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SCLT_VERSION', '1.0.1' );
+define( 'SCLT_VERSION', '1.0.12' );
 define( 'SCLT_BRAND_NAME', 'StoreCanvas Lite' );
 define( 'SCLT_PLUGIN_FILE', __FILE__ );
 define( 'SCLT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -31,6 +31,9 @@ require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-product-options.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-option-groups.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-cart-order.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-admin-product.php';
+require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-demo.php';
+require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-support.php';
+require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-hub.php';
 
 /**
  * Whether the paid StoreCanvas plugin is active. Lite steps aside so a store
@@ -62,6 +65,8 @@ function sclt_init() {
 	SCLT_Cart_Order::instance();
 	if ( is_admin() ) {
 		SCLT_Admin_Product::instance();
+		SCLT_Support::instance();
+		SCLT_Hub::instance();
 	}
 }
 add_action( 'plugins_loaded', 'sclt_init', 20 );
