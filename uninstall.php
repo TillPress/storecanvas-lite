@@ -26,3 +26,16 @@ delete_post_meta_by_key( '_sclt_option_group_ids' );
 delete_post_meta_by_key( '_sclt_group_fields' );
 delete_post_meta_by_key( '_sclt_group_product_ids' );
 delete_post_meta_by_key( '_sclt_group_category_ids' );
+
+// Help & demo page: demo data (only objects carrying the demo marker) and the per-user offer dismissal.
+$sclt_demo = get_option( 'sclt_demo_ids', array() );
+if ( is_array( $sclt_demo ) ) {
+	foreach ( array_merge( (array) ( $sclt_demo['products'] ?? array() ), (array) ( $sclt_demo['groups'] ?? array() ) ) as $sclt_id ) {
+		$sclt_id = absint( $sclt_id );
+		if ( $sclt_id && get_post_meta( $sclt_id, '_sclt_demo', true ) ) {
+			wp_delete_post( $sclt_id, true );
+		}
+	}
+}
+delete_option( 'sclt_demo_ids' );
+delete_metadata( 'user', 0, 'sclt_offer_dismissed', '', true );

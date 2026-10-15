@@ -61,6 +61,7 @@ class SCLT_Plugin {
 			array(),
 			SCLT_VERSION
 		);
+		wp_enqueue_style( 'sclt-options', SCLT_PLUGIN_URL . 'assets/options.css', array(), SCLT_VERSION );
 
 		// Live price preview for options pricing.
 		$pricing_fields = $product_id ? SCLT_Product_Options::pricing_config_for_product( $product_id ) : array();
@@ -110,5 +111,15 @@ class SCLT_Plugin {
 			return;
 		}
 		wp_enqueue_script( 'sclt-admin', SCLT_PLUGIN_URL . 'assets/admin.js', array( 'jquery' ), SCLT_VERSION, true );
+		wp_add_inline_script(
+			'sclt-admin',
+			'window.scltBuilderTypes = ' . wp_json_encode(
+				array(
+					'fields' => SCLT_Product_Options::field_types(),
+					'prices' => SCLT_Product_Options::price_types(),
+				)
+			) . ';',
+			'before'
+		);
 	}
 }

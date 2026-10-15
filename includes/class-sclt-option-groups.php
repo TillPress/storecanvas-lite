@@ -67,6 +67,7 @@ class SCLT_Option_Groups {
 		wp_nonce_field( 'sclt_option_group_save', 'sclt_option_group_nonce' );
 		$sclt_fields = get_post_meta( $post->ID, self::META_FIELDS, true );
 		$sclt_fields = is_array( $sclt_fields ) ? $sclt_fields : array();
+		$sclt_fields = SCLT_Product_Options::stamp_stock_orig( $sclt_fields );
 		$sclt_prods  = get_post_meta( $post->ID, self::META_PRODUCTS, true );
 		$sclt_prods  = is_array( $sclt_prods ) ? implode( ',', array_map( 'absint', $sclt_prods ) ) : '';
 		$sclt_cats   = get_post_meta( $post->ID, self::META_CATS, true );
@@ -84,6 +85,7 @@ class SCLT_Option_Groups {
 		echo '<p class="description">' . esc_html__( 'Fields use the same JSON shape as product option fields. Assign to products and/or categories. Product-local fields with the same id override group fields.', 'storecanvas-lite' ) . '</p>';
 		echo '<p><label><strong>' . esc_html__( 'Fields JSON', 'storecanvas-lite' ) . '</strong></label><br />';
 		echo '<textarea name="sclt_group_fields_json" class="large-text code" rows="12">' . esc_textarea( wp_json_encode( $sclt_fields, JSON_PRETTY_PRINT ) ) . '</textarea></p>';
+		echo '<input type="hidden" name="sclt_group_stock_orig_json" value="' . esc_attr( wp_json_encode( SCLT_Product_Options::stock_orig_map( $sclt_fields ) ) ) . '" />';
 		echo '<p><label><strong>' . esc_html__( 'Product IDs (comma-separated)', 'storecanvas-lite' ) . '</strong></label><br />';
 		echo '<input type="text" class="large-text" name="sclt_group_product_ids" value="' . esc_attr( $sclt_prods ) . '" placeholder="12, 34, 56" /></p>';
 		echo '<p><strong>' . esc_html__( 'Product categories', 'storecanvas-lite' ) . '</strong></p><div style="max-height:160px;overflow:auto;border:1px solid #ddd;padding:8px;">';
@@ -120,7 +122,14 @@ class SCLT_Option_Groups {
 				}
 			}
 		}
-		update_post_meta( $post_id, self::META_FIELDS, $fields );
+		$orig_map = array();
+		if ( isset( $_POST['sclt_group_stock_orig_json'] ) ) {
+			$decoded_orig = json_decode( wp_unslash( $_POST['sclt_group_stock_orig_json'] ), true ); // phpcs:ignore
+			if ( is_array( $decoded_orig ) ) {
+				$orig_map = $decoded_orig;
+			}
+		}
+		SCLT_Product_Options::save_option_fields_cas( $post_id, self::META_FIELDS, $fields, $orig_map, false );
 
 		$prod_ids = array();
 		if ( ! empty( $_POST['sclt_group_product_ids'] ) ) {

@@ -129,6 +129,9 @@ class SCLT_Product_Options {
 						'value' => sanitize_text_field( $c['value'] ?? '' ),
 						'label' => sanitize_text_field( $c['label'] ?? ( $c['value'] ?? '' ) ),
 					);
+					if ( ! empty( $c['id'] ) ) {
+						$row['id'] = sanitize_key( $c['id'] );
+					}
 					if ( ! empty( $c['image_url'] ) ) {
 						$row['image_url'] = esc_url_raw( $c['image_url'] );
 					}
@@ -137,6 +140,9 @@ class SCLT_Product_Options {
 					}
 					if ( array_key_exists( 'stock_qty', $c ) && null !== $c['stock_qty'] && '' !== $c['stock_qty'] ) {
 						$row['stock_qty'] = max( 0, (int) $c['stock_qty'] );
+					}
+					if ( array_key_exists( 'stock_qty_orig', $c ) && null !== $c['stock_qty_orig'] && '' !== $c['stock_qty_orig'] ) {
+						$row['stock_qty_orig'] = (int) $c['stock_qty_orig'];
 					}
 					// Per-choice price for lookup-table pricing (may be negative for a discount).
 					if ( array_key_exists( 'price', $c ) && null !== $c['price'] && '' !== $c['price'] ) {
@@ -211,6 +217,214 @@ class SCLT_Product_Options {
 	}
 
 	/**
+	 * Stable identity for a choice. Prefer id when present; otherwise value.
+	 * Never uses array index so reorder/remove cannot apply stock to the wrong row.
+	 *
+	 * @param mixed $choice Choice row.
+	 * @return string
+	 */
+	public static function choice_stable_key( $choice ) {
+		if ( is_array( $choice ) && ! empty( $choice['id'] ) ) {
+			return 'id:' . sanitize_key( $choice['id'] );
+		}
+		$val = is_array( $choice ) ? ( $choice['value'] ?? '' ) : $choice;
+		return 'val:' . (string) $val;
+	}
+
+	/**
+	 * Map of field_id => choice_key => stock_qty at form-render time.
+	 *
+	 * @param array $fields Fields.
+	 * @return array
+	 */
+	public static function stock_orig_map( $fields ) {
+		$map = array();
+		if ( ! is_array( $fields ) ) {
+			return $map;
+		}
+		foreach ( $fields as $f ) {
+			if ( ! is_array( $f ) || empty( $f['id'] ) || empty( $f['choices'] ) || ! is_array( $f['choices'] ) ) {
+				continue;
+			}
+			$fid = (string) $f['id'];
+			foreach ( $f['choices'] as $c ) {
+				if ( ! is_array( $c ) || ! array_key_exists( 'stock_qty', $c ) || null === $c['stock_qty'] || '' === $c['stock_qty'] ) {
+					continue;
+				}
+				$map[ $fid ][ self::choice_stable_key( $c ) ] = (int) $c['stock_qty'];
+			}
+		}
+		return $map;
+	}
+
+	/**
+	 * Stamp stock_qty_orig on each tracked choice (form render).
+	 *
+	 * @param array $fields Fields.
+	 * @return array
+	 */
+	public static function stamp_stock_orig( $fields ) {
+		if ( ! is_array( $fields ) ) {
+			return array();
+		}
+		foreach ( $fields as &$f ) {
+			if ( ! is_array( $f ) || empty( $f['choices'] ) || ! is_array( $f['choices'] ) ) {
+				continue;
+			}
+			foreach ( $f['choices'] as &$c ) {
+				if ( is_array( $c ) && array_key_exists( 'stock_qty', $c ) && null !== $c['stock_qty'] && '' !== $c['stock_qty'] ) {
+					$c['stock_qty_orig'] = (int) $c['stock_qty'];
+				}
+			}
+			unset( $c );
+		}
+		unset( $f );
+		return $fields;
+	}
+
+	/**
+	 * Current fields list from a stored blob ({fields:[]} or bare list).
+	 *
+	 * @param mixed $raw Meta value.
+	 * @return array
+	 */
+	public static function fields_from_blob( $raw ) {
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		if ( isset( $raw['fields'] ) && is_array( $raw['fields'] ) ) {
+			return $raw['fields'];
+		}
+		if ( $raw && isset( $raw[0] ) && is_array( $raw[0] ) && isset( $raw[0]['id'] ) ) {
+			return $raw;
+		}
+		return array();
+	}
+
+	/**
+	 * Merge submitted admin fields with live DB stock.
+	 *
+	 * Delta policy: when the form captured orig stock and staff did not change
+	 * the field (submitted == orig), keep the CURRENT database qty so checkouts
+	 * since render are not resurrected. When staff did change it, apply
+	 * delta = submitted - orig onto the current qty (safer than an absolute set).
+	 * Paths without orig (REST, import, templates, duplicate) treat submitted
+	 * stock as an explicit set.
+	 *
+	 * @param array $submitted   Sanitized submitted fields.
+	 * @param mixed $current_raw Live meta blob.
+	 * @param array $orig_map    Optional field_id => choice_key => orig qty.
+	 * @return array Fields with stock_qty_orig stripped.
+	 */
+	public static function apply_admin_stock_merge( $submitted, $current_raw, $orig_map = array() ) {
+		if ( ! is_array( $submitted ) ) {
+			return array();
+		}
+		if ( ! is_array( $orig_map ) ) {
+			$orig_map = array();
+		}
+		$current_fields = self::fields_from_blob( $current_raw );
+		$cur_by_id      = array();
+		foreach ( $current_fields as $cf ) {
+			if ( is_array( $cf ) && ! empty( $cf['id'] ) ) {
+				$cur_by_id[ (string) $cf['id'] ] = $cf;
+			}
+		}
+		$out = array();
+		foreach ( $submitted as $f ) {
+			if ( ! is_array( $f ) ) {
+				continue;
+			}
+			$fid         = (string) ( $f['id'] ?? '' );
+			$cur_choices = array();
+			if ( $fid && isset( $cur_by_id[ $fid ]['choices'] ) && is_array( $cur_by_id[ $fid ]['choices'] ) ) {
+				foreach ( $cur_by_id[ $fid ]['choices'] as $cc ) {
+					$cur_choices[ self::choice_stable_key( $cc ) ] = $cc;
+				}
+			}
+			if ( ! empty( $f['choices'] ) && is_array( $f['choices'] ) ) {
+				$new_choices = array();
+				foreach ( $f['choices'] as $c ) {
+					if ( ! is_array( $c ) ) {
+						$new_choices[] = $c;
+						continue;
+					}
+					$ckey = self::choice_stable_key( $c );
+					$orig = null;
+					if ( array_key_exists( 'stock_qty_orig', $c ) && null !== $c['stock_qty_orig'] && '' !== $c['stock_qty_orig'] ) {
+						$orig = (int) $c['stock_qty_orig'];
+					} elseif ( $fid && isset( $orig_map[ $fid ][ $ckey ] ) ) {
+						$orig = (int) $orig_map[ $fid ][ $ckey ];
+					}
+					$has_sub   = array_key_exists( 'stock_qty', $c ) && null !== $c['stock_qty'] && '' !== $c['stock_qty'];
+					$cur_found = isset( $cur_choices[ $ckey ] );
+					$cur       = $cur_found ? $cur_choices[ $ckey ] : null;
+					$has_cur   = is_array( $cur ) && array_key_exists( 'stock_qty', $cur ) && null !== $cur['stock_qty'] && '' !== $cur['stock_qty'];
+					unset( $c['stock_qty_orig'] );
+					if ( null !== $orig ) {
+						if ( ! $has_sub ) {
+							unset( $c['stock_qty'] );
+						} elseif ( (int) $c['stock_qty'] === $orig ) {
+							if ( $has_cur ) {
+								$c['stock_qty'] = max( 0, (int) $cur['stock_qty'] );
+							} elseif ( $cur_found ) {
+								unset( $c['stock_qty'] );
+							}
+						} else {
+							$delta = (int) $c['stock_qty'] - $orig;
+							if ( $has_cur ) {
+								$c['stock_qty'] = max( 0, (int) $cur['stock_qty'] + $delta );
+							} else {
+								$c['stock_qty'] = max( 0, (int) $c['stock_qty'] );
+							}
+						}
+					}
+					$new_choices[] = $c;
+				}
+				$f['choices'] = $new_choices;
+			}
+			$out[] = $f;
+		}
+		return $out;
+	}
+
+	/**
+	 * Persist option fields via CAS so a concurrent checkout decrement is not lost.
+	 *
+	 * @param int    $owner_id Owner post ID.
+	 * @param string $meta_key Meta key.
+	 * @param array  $fields   Sanitized submitted fields.
+	 * @param array  $orig_map Orig stock map.
+	 * @param bool   $wrap     True = {fields:[]}; false = bare list (option groups).
+	 * @return bool
+	 */
+	public static function save_option_fields_cas( $owner_id, $meta_key, $fields, $orig_map = array(), $wrap = true ) {
+		$owner_id = (int) $owner_id;
+		$fields   = is_array( $fields ) ? $fields : array();
+		$orig_map = is_array( $orig_map ) ? $orig_map : array();
+		$cas      = class_exists( 'SCLT_Cart_Order' ) ? 'SCLT_Cart_Order' : '';
+		$ok       = false;
+		if ( $cas ) {
+			$r  = $cas::cas_update_stock_meta(
+				$owner_id,
+				$meta_key,
+				function ( &$raw ) use ( $fields, $orig_map, $wrap ) {
+					$merged = self::apply_admin_stock_merge( $fields, $raw, $orig_map );
+					$raw    = $wrap ? array( 'fields' => $merged ) : $merged;
+					return true;
+				}
+			);
+			$ok = ( true === $r );
+		}
+		if ( ! $ok ) {
+			$current = get_post_meta( $owner_id, $meta_key, true );
+			$merged  = self::apply_admin_stock_merge( $fields, $current, $orig_map );
+			update_post_meta( $owner_id, $meta_key, $wrap ? array( 'fields' => $merged ) : $merged );
+		}
+		return true;
+	}
+
+	/**
 	 * Local product config only (no groups).
 	 *
 	 * @param int $product_id Product ID.
@@ -245,7 +459,8 @@ class SCLT_Product_Options {
 					}
 					$fid = sanitize_key( $f['id'] );
 					if ( ! isset( $merged[ $fid ] ) ) {
-						$merged[ $fid ] = $f;
+						$f['_sc_group_id'] = (int) ( $g['id'] ?? 0 );
+						$merged[ $fid ]    = $f;
 					}
 				}
 			}
@@ -524,15 +739,7 @@ class SCLT_Product_Options {
 		}
 		echo '</div>';
 		wp_enqueue_script( 'sclt-option-logic', SCLT_PLUGIN_URL . 'assets/option-logic.js', array(), SCLT_VERSION, true );
-		?>
-		<style>
-		.sclt-image-choice{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-		.sclt-image-choice label{display:flex;flex-direction:column;align-items:center;width:88px;font-size:12px;border:1px solid #ddd;padding:6px;border-radius:4px;cursor:pointer}
-		.sclt-image-choice img{max-width:72px;max-height:72px;object-fit:contain}
-		.sclt-image-choice input{margin-bottom:4px}
-		.sclt-option-field[data-sclt-visible="0"]{display:none!important}
-		</style>
-		<?php
+		wp_enqueue_style( 'sclt-options', SCLT_PLUGIN_URL . 'assets/options.css', array(), SCLT_VERSION );
 	}
 
 	private function render_field( $field ) {
@@ -606,17 +813,29 @@ class SCLT_Product_Options {
 				foreach ( (array) ( $field['choices'] ?? array() ) as $choice ) {
 					$val = is_array( $choice ) ? ( $choice['value'] ?? '' ) : $choice;
 					$lab = is_array( $choice ) ? ( $choice['label'] ?? $val ) : $choice;
-					$sel = in_array( (string) $val, array_map( 'strval', $defs ), true ) ? ' selected' : '';
-					echo '<option value="' . esc_attr( $val ) . '"' . $sel . '>' . esc_html( $lab ) . '</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+					$stk       = is_array( $choice ) && array_key_exists( 'stock_qty', $choice ) ? $choice['stock_qty'] : null;
+					$dis       = ( null !== $stk && '' !== $stk && (int) $stk <= 0 ) ? ' disabled' : '';
+					$sel       = ( '' === $dis && in_array( (string) $val, array_map( 'strval', $defs ), true ) ) ? ' selected' : '';
+					$lab_extra = ( null !== $stk && '' !== $stk ) ? ' (' . (int) $stk . ')' : '';
+					echo '<option value="' . esc_attr( $val ) . '"' . $sel . $dis . '>' . esc_html( $lab . $lab_extra ) . '</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 				echo '</select>';
 				break;
 			case 'radio':
-				foreach ( (array) ( $field['choices'] ?? array() ) as $i => $choice ) {
-					$val = is_array( $choice ) ? ( $choice['value'] ?? '' ) : $choice;
-					$lab = is_array( $choice ) ? ( $choice['label'] ?? $val ) : $choice;
-					$chk = ( (string) $def === (string) $val ) ? ' checked' : '';
-					echo '<label style="display:inline-block;margin-right:10px;"><input type="radio" name="' . esc_attr( $name ) . '" value="' . esc_attr( $val ) . '"' . $chk . ( $req && 0 === $i ? ' required' : '' ) . ' /> ' . esc_html( $lab ) . '</label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				$req_done = false;
+				foreach ( (array) ( $field['choices'] ?? array() ) as $choice ) {
+					$val       = is_array( $choice ) ? ( $choice['value'] ?? '' ) : $choice;
+					$lab       = is_array( $choice ) ? ( $choice['label'] ?? $val ) : $choice;
+					$stk       = is_array( $choice ) && array_key_exists( 'stock_qty', $choice ) ? $choice['stock_qty'] : null;
+					$dis       = ( null !== $stk && '' !== $stk && (int) $stk <= 0 ) ? ' disabled' : '';
+					$chk       = ( '' === $dis && (string) $def === (string) $val ) ? ' checked' : '';
+					$lab_extra = '' !== $dis ? ' ' . __( '(sold out)', 'storecanvas-lite' ) : '';
+					$req_attr  = '';
+					if ( $req && ! $req_done && '' === $dis ) {
+						$req_attr = ' required';
+						$req_done = true;
+					}
+					echo '<label style="display:inline-block;margin-right:10px;"><input type="radio" name="' . esc_attr( $name ) . '" value="' . esc_attr( $val ) . '"' . $chk . $dis . $req_attr . ' /> ' . esc_html( $lab . $lab_extra ) . '</label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				}
 				break;
 			case 'image_choice':

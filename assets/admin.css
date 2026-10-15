@@ -31,5 +31,8 @@
 	min-width: 60px;
 }
 .sclt-builder .sclt-field-choices { min-width: 220px; }
+/* Choices hold the whole list ("Steel@40, Black=2@12, Rose gold=5@0"): give them the full row. */
+.sclt-builder .sclt-choices-wrap { flex: 1 1 100%; white-space: normal; }
+.woocommerce_options_panel .sclt-builder .sclt-choices-wrap .sclt-field-choices { flex: 1 1 auto; width: 100% !important; }
 .sclt-builder .sclt-field-label { min-width: 140px; }
 .sclt-option-field[data-show-if-field] { transition: opacity .15s; }
