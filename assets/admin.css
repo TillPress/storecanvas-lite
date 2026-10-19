@@ -36,3 +36,15 @@
 .woocommerce_options_panel .sclt-builder .sclt-choices-wrap .sclt-field-choices { flex: 1 1 auto; width: 100% !important; }
 .sclt-builder .sclt-field-label { min-width: 140px; }
 .sclt-option-field[data-show-if-field] { transition: opacity .15s; }
+
+/* Customer design canvas settings (product tab). */
+.woocommerce_options_panel .sclt-canvas-admin label.sclt-inline {
+	float: none !important;
+	width: auto !important;
+	margin: 0 14px 4px 0 !important;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.woocommerce_options_panel .sclt-canvas-admin input[type="number"] { float: none !important; }
+.sclt-canvas-editor__rect:focus { outline: 2px solid #135e96; outline-offset: 1px; }

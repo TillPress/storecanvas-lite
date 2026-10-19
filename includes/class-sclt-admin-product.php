@@ -52,7 +52,7 @@ class SCLT_Admin_Product {
 			<div class="options_group">
 				<p class="form-field">
 					<strong><?php esc_html_e( 'StoreCanvas Lite', 'storecanvas-lite' ); ?></strong>
-					<span class="description"> — <?php esc_html_e( 'Product options: field types, pricing, conditional logic, option stock.', 'storecanvas-lite' ); ?></span>
+					<span class="description"> — <?php esc_html_e( 'Product options: field types, pricing, conditional logic, option stock, and a customer design canvas.', 'storecanvas-lite' ); ?></span>
 				</p>
 				<p class="form-field sclt-status-line" style="padding-left:12px;">
 					<code>
@@ -104,7 +104,7 @@ class SCLT_Admin_Product {
 				<?php endif; ?>
 				<h4 style="padding-left:12px;"><?php esc_html_e( 'Option fields (local)', 'storecanvas-lite' ); ?></h4>
 				<p class="form-field" style="padding-left:12px;">
-					<span class="description"><?php esc_html_e( 'Choices are comma-separated. Add =price for a per-choice price (Large=5) and @stock for a stock count (Large=5@20); leave @stock off for unlimited. To show a field only after another is chosen, put the other field\'s ID in "Show if field" (a checkbox counts as 1 when ticked).', 'storecanvas-lite' ); ?></span>
+					<span class="description"><?php esc_html_e( 'Choices are comma-separated. Add =price for a per-choice price (Large=5) and @stock for a stock count (Large=5@20); leave @stock off for unlimited. Click "Add condition" to show a field only when other fields match: choose "all" to need every rule (AND) or "any" for one of them (OR). A ticked checkbox counts as 1. File upload fields let you pick the allowed file types and a size limit.', 'storecanvas-lite' ); ?></span>
 				</p>
 				<div id="sclt-fields-builder" class="sclt-builder" style="padding:0 12px 12px;">
 					<p>
@@ -115,6 +115,12 @@ class SCLT_Admin_Product {
 				<input type="hidden" name="sclt_options_fields_json" id="sclt_options_fields_json" value="<?php echo esc_attr( wp_json_encode( SCLT_Product_Options::stamp_stock_orig( (array) ( $sclt_options['fields'] ?? array() ) ) ) ); ?>" />
 				<input type="hidden" name="sclt_options_stock_orig_json" id="sclt_options_stock_orig_json" value="<?php echo esc_attr( wp_json_encode( SCLT_Product_Options::stock_orig_map( (array) ( $sclt_options['fields'] ?? array() ) ) ) ); ?>" />
 			</div>
+
+			<?php
+			if ( class_exists( 'SCLT_Canvas' ) ) {
+				SCLT_Canvas::render_admin_section( $sclt_product_id );
+			}
+			?>
 		</div>
 		<?php
 	}
@@ -163,5 +169,9 @@ class SCLT_Admin_Product {
 			}
 		}
 		update_post_meta( $post_id, SCLT_Plugin::META_OPTION_GROUPS, array_values( array_unique( array_filter( $group_ids ) ) ) );
+
+		if ( class_exists( 'SCLT_Canvas' ) ) {
+			SCLT_Canvas::save_settings( $post_id );
+		}
 	}
 }

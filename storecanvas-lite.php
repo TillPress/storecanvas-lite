@@ -2,13 +2,15 @@
 /**
  * Plugin Name:       StoreCanvas Lite
  * Plugin URI:        https://tillpress.com/storecanvas/
- * Description:       Free WooCommerce product options: 15 field types, conditional logic, per-choice/lookup, percent, quantity and per-character pricing, and per-choice option stock.
- * Version:           1.0.12
+ * Description:       Free WooCommerce product options and a customer design canvas: 15 field types, conditional logic, per-choice/lookup, percent, quantity and per-character pricing, per-choice option stock, and text/image designs on one print area.
+ * Version:           1.2.0
  * Author:            Tillpress
  * Author URI:        https://tillpress.com
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * WC requires at least: 7.0
+ * WC tested up to:  11.2
+ * Requires Plugins:  woocommerce
  * Text Domain:       storecanvas-lite
  * Domain Path:       /languages
  * License:           GPLv2 or later
@@ -19,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SCLT_VERSION', '1.0.12' );
+define( 'SCLT_VERSION', '1.2.0' );
 define( 'SCLT_BRAND_NAME', 'StoreCanvas Lite' );
 define( 'SCLT_PLUGIN_FILE', __FILE__ );
 define( 'SCLT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -30,10 +32,13 @@ require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-plugin.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-product-options.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-option-groups.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-cart-order.php';
+require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-canvas.php';
+require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-option-files.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-admin-product.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-demo.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-support.php';
 require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-hub.php';
+require_once SCLT_PLUGIN_DIR . 'includes/class-sclt-review-nudge.php';
 
 /**
  * Whether the paid StoreCanvas plugin is active. Lite steps aside so a store
@@ -63,6 +68,9 @@ function sclt_init() {
 	SCLT_Product_Options::instance();
 	SCLT_Option_Groups::instance();
 	SCLT_Cart_Order::instance();
+	SCLT_Canvas::instance();
+	SCLT_Option_Files::instance();
+	SCLT_Review_Nudge::instance();
 	if ( is_admin() ) {
 		SCLT_Admin_Product::instance();
 		SCLT_Support::instance();
@@ -70,6 +78,17 @@ function sclt_init() {
 	}
 }
 add_action( 'plugins_loaded', 'sclt_init', 20 );
+
+// Pending (never ordered) design uploads are pruned daily, even while Pro is active.
+add_action( SCLT_Canvas::CRON, array( 'SCLT_Canvas', 'cleanup' ) );
+
+/**
+ * Stop the daily design cleanup when the plugin is deactivated.
+ */
+function sclt_deactivate() {
+	wp_clear_scheduled_hook( SCLT_Canvas::CRON );
+}
+register_deactivation_hook( __FILE__, 'sclt_deactivate' );
 
 add_action(
 	'before_woocommerce_init',
