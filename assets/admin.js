@@ -24,6 +24,90 @@
 		return ( window.scltBuilderTypes && window.scltBuilderTypes.prices ) || {};
 	}
 
+	var OPS = [
+		['is', 'is'],
+		['is_not', 'is not'],
+		['contains', 'contains'],
+		['not_contains', 'does not contain'],
+		['gt', 'is more than'],
+		['gte', 'is at least'],
+		['lt', 'is less than'],
+		['lte', 'is at most'],
+		['empty', 'is empty'],
+		['not_empty', 'is not empty'],
+		['in', 'is one of (a, b, c)'],
+	];
+	var NO_VALUE_OPS = ['empty', 'not_empty'];
+	var FILE_TYPES = ['jpg', 'png', 'gif', 'webp', 'pdf'];
+
+	/* Older products store one "show if field equals value" rule; the editor shows it as an AND rule. */
+	function conditionsOf(f) {
+		if (f.conditions && Array.isArray(f.conditions.rules) && f.conditions.rules.length) {
+			return { logic: f.conditions.logic === 'or' ? 'or' : 'and', rules: f.conditions.rules.slice() };
+		}
+		var sf = (f.show_if && f.show_if.field) || f.show_if_field || '';
+		var sv = (f.show_if && f.show_if.value != null) ? String(f.show_if.value) : (f.show_if_value || '');
+		if (sf && sv !== '') {
+			return { logic: 'and', rules: [{ field: sf, op: 'is', value: sv }] };
+		}
+		return { logic: 'and', rules: [] };
+	}
+
+	function ruleHtml(rule, others) {
+		var known = false;
+		var fieldOpts = '<option value="">Choose a field…</option>' + others
+			.map(function (o) {
+				var sel = o.id === rule.field;
+				if (sel) known = true;
+				return '<option value="' + esc(o.id) + '"' + (sel ? ' selected' : '') + '>' + esc(o.label || o.id) + ' (' + esc(o.id) + ')</option>';
+			})
+			.join('');
+		if (rule.field && !known) {
+			fieldOpts += '<option value="' + esc(rule.field) + '" selected>Missing field (' + esc(rule.field) + ')</option>';
+		}
+		var opOpts = OPS.map(function (o) {
+			return '<option value="' + o[0] + '"' + ((rule.op || 'is') === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+		}).join('');
+		var hideVal = NO_VALUE_OPS.indexOf(rule.op) >= 0;
+		return (
+			'<div class="sclt-cond-rule" style="margin:3px 0;">' +
+			'<select class="sclt-cond-field" aria-label="Field">' + fieldOpts + '</select> ' +
+			'<select class="sclt-cond-op" aria-label="Test">' + opOpts + '</select> ' +
+			'<input type="text" class="sclt-cond-value" aria-label="Value" placeholder="value" value="' + esc(rule.value != null ? rule.value : '') + '" style="width:120px;' + (hideVal ? 'display:none;' : '') + '" /> ' +
+			'<button type="button" class="button-link sclt-cond-remove" aria-label="Remove rule">Remove</button>' +
+			'</div>'
+		);
+	}
+
+	function conditionsHtml(cond, others) {
+		return (
+			'<div class="sclt-cond" style="margin-top:6px;padding:6px;background:#f6f7f7;">' +
+			'<span class="sclt-cond-head"' + (cond.rules.length ? '' : ' style="display:none"') + '>Show this field only when <select class="sclt-cond-logic" aria-label="Match">' +
+			'<option value="and"' + (cond.logic !== 'or' ? ' selected' : '') + '>all</option>' +
+			'<option value="or"' + (cond.logic === 'or' ? ' selected' : '') + '>any</option>' +
+			'</select> of these rules match:</span>' +
+			'<div class="sclt-cond-rules">' + cond.rules.map(function (r) { return ruleHtml(r, others); }).join('') + '</div>' +
+			'<button type="button" class="button button-small sclt-cond-add">Add condition</button>' +
+			'</div>'
+		);
+	}
+
+	function fileHtml(f) {
+		var chosen = Array.isArray(f.file_types) && f.file_types.length ? f.file_types : ['jpg', 'png', 'pdf'];
+		return (
+			'<div class="sclt-file-wrap" style="margin-top:6px;">File types ' +
+			FILE_TYPES.map(function (t) {
+				return '<label style="margin-right:6px;"><input type="checkbox" class="sclt-file-type" value="' + t + '"' + (chosen.indexOf(t) >= 0 ? ' checked' : '') + ' /> ' + t.toUpperCase() + '</label>';
+			}).join('') +
+			' <label>Max size (MB) <input type="number" class="sclt-file-max" min="0.1" step="0.1" placeholder="5" value="' + (f.max_mb != null ? f.max_mb : '') + '" style="width:70px" /></label>' +
+			'</div>'
+		);
+	}
+
+	function toggleRowParts($row) {
+		$row.find('.sclt-file-wrap').toggle($row.find('.sclt-field-type').val() === 'file');
+	}
+
 	/* ---- Fields ---- */
 	function renderFields() {
 		var fields = parseJSON('#sclt_options_fields_json', []);
@@ -32,6 +116,11 @@
 		var $list = $('#sclt-fields-list').empty();
 		fields.forEach(function (f) {
 			if (!f.id) f.id = uid();
+		});
+		fields.forEach(function (f) {
+			var others = fields
+				.filter(function (o) { return o.id !== f.id && o.type !== 'heading'; })
+				.map(function (o) { return { id: o.id, label: o.label }; });
 			var typeOpts = Object.keys(types)
 				.map(function (k) {
 					return (
@@ -72,8 +161,6 @@
 					})
 					.join(', ');
 			}
-			var showIfField = (f.show_if && f.show_if.field) || f.show_if_field || '';
-			var showIfValue = (f.show_if && f.show_if.value != null) ? f.show_if.value : (f.show_if_value || '');
 			var rolesStr = Array.isArray(f.roles_allowed) ? f.roles_allowed.join(',') : (f.roles_allowed || '');
 			var varsStr = Array.isArray(f.variation_ids) ? f.variation_ids.join(',') : (f.variation_ids || '');
 			var defVal = Array.isArray(f.default_value) ? f.default_value.join(',') : (f.default_value != null ? f.default_value : '');
@@ -82,7 +169,7 @@
 					'<input type="hidden" class="sclt-field-id" value="' +
 					esc(f.id || uid()) +
 					'" />' +
-					'<span class="sclt-field-id-show" style="float:right;color:#50575e;">Field ID <code class="sclt-field-id-code" title="Use this in another field\'s Show if field box">' +
+					'<span class="sclt-field-id-show" style="float:right;color:#50575e;">Field ID <code class="sclt-field-id-code" title="Other fields can use this field in their conditions">' +
 					esc(f.id || '') +
 					'</code></span>' +
 					'<label>Label <input type="text" class="sclt-field-label" value="' +
@@ -127,19 +214,14 @@
 					'<label>Variation IDs <input type="text" class="sclt-field-variations" placeholder="101,102" value="' +
 					esc(varsStr) +
 					'" style="width:120px" /></label> ' +
-					'<label>Show if field <input type="text" class="sclt-field-show-if-field" placeholder="other_field_id" value="' +
-					esc(showIfField) +
-					'" style="width:120px" /></label> ' +
-					'<label>equals <input type="text" class="sclt-field-show-if-value" placeholder="value" value="' +
-					esc(showIfValue) +
-					'" style="width:100px" /></label> ' +
 					'<button type="button" class="button sclt-remove-field">Remove</button>' +
+					fileHtml(f) +
+					conditionsHtml(conditionsOf(f), others) +
 					'</div>'
 			);
 			$row.data('scltChoices', Array.isArray(f.choices) ? f.choices : []);
-			// Multi-rule conditions are not editable here; keep them so a builder save never drops them.
-			$row.data('scltConditions', f.conditions && f.conditions.rules ? f.conditions : null);
 			$list.append($row);
+			toggleRowParts($row);
 		});
 	}
 
@@ -201,8 +283,6 @@
 					}
 				});
 			}
-			var showIfField = ($r.find('.sclt-field-show-if-field').val() || '').trim();
-			var showIfValue = $r.find('.sclt-field-show-if-value').val() || '';
 			var row = {
 				id: $r.find('.sclt-field-id').val() || uid(),
 				type: type,
@@ -225,10 +305,21 @@
 			if (roles) row.roles_allowed = roles.split(/[\s,]+/).filter(Boolean);
 			var vars = ($r.find('.sclt-field-variations').val() || '').trim();
 			if (vars) row.variation_ids = vars.split(/[\s,]+/).map(function (x) { return parseInt(x, 10); }).filter(Boolean);
-			var cond = $r.data('scltConditions');
-			if (cond) row.conditions = cond;
-			if (showIfField) {
-				row.show_if = { field: showIfField, value: showIfValue };
+			var rules = [];
+			$r.find('.sclt-cond-rule').each(function () {
+				var $c = $(this);
+				var field = $c.find('.sclt-cond-field').val() || '';
+				if (!field) return;
+				var op = $c.find('.sclt-cond-op').val() || 'is';
+				rules.push({ field: field, op: op, value: NO_VALUE_OPS.indexOf(op) >= 0 ? '' : ($c.find('.sclt-cond-value').val() || '') });
+			});
+			if (rules.length) {
+				row.conditions = { logic: $r.find('.sclt-cond-logic').val() === 'or' ? 'or' : 'and', rules: rules };
+			}
+			if (type === 'file') {
+				row.file_types = $r.find('.sclt-file-type:checked').map(function () { return this.value; }).get();
+				var maxMb = parseFloat($r.find('.sclt-file-max').val());
+				if (maxMb > 0) row.max_mb = maxMb;
 			}
 			fields.push(row);
 		});
@@ -261,7 +352,6 @@
 				price_type: 'none',
 				price: 0,
 				choices: [],
-				show_if: null,
 			});
 			$('#sclt_options_fields_json').val(JSON.stringify(fields));
 			renderFields();
@@ -271,6 +361,36 @@
 			.on('click', '.sclt-remove-field', function () {
 				$(this).closest('.sclt-field-row').remove();
 				syncFields();
+			})
+			.on('click', '.sclt-cond-add', function () {
+				syncFields();
+				var $row = $(this).closest('.sclt-field-row');
+				var fields = parseJSON('#sclt_options_fields_json', []);
+				var id = $row.find('.sclt-field-id').val();
+				var others = fields
+					.filter(function (o) { return o.id !== id && o.type !== 'heading'; })
+					.map(function (o) { return { id: o.id, label: o.label }; });
+				$row.find('.sclt-cond-rules').append(ruleHtml({ field: '', op: 'is', value: '' }, others));
+				$row.find('.sclt-cond-head').show();
+			})
+			.on('click', '.sclt-cond-remove', function () {
+				var $row = $(this).closest('.sclt-field-row');
+				$(this).closest('.sclt-cond-rule').remove();
+				if (!$row.find('.sclt-cond-rule').length) $row.find('.sclt-cond-head').hide();
+				syncFields();
+			})
+			.on('change', '.sclt-cond-op', function () {
+				$(this).siblings('.sclt-cond-value').toggle(NO_VALUE_OPS.indexOf($(this).val()) < 0);
+			})
+			.on('change', '.sclt-field-type', function () {
+				toggleRowParts($(this).closest('.sclt-field-row'));
+			})
+			.on('change', '.sclt-field-label', function () {
+				// Keep the field names in other rows' condition pickers current.
+				var $row = $(this).closest('.sclt-field-row');
+				var id = $row.find('.sclt-field-id').val();
+				var text = ($(this).val() || id) + ' (' + id + ')';
+				$('#sclt-fields-list .sclt-cond-field option').filter(function () { return this.value === id; }).text(text);
 			})
 			.on('change', 'input,select', syncFields);
 

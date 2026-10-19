@@ -209,6 +209,16 @@ class SCLT_Product_Options {
 		if ( ! empty( $f['multi'] ) ) {
 			$row['multi'] = 1;
 		}
+		// File upload limits: allowed types and size in MB.
+		if ( 'file' === $row['type'] && class_exists( 'SCLT_Option_Files' ) ) {
+			$types = SCLT_Option_Files::sanitize_types( $f['file_types'] ?? array() );
+			if ( $types ) {
+				$row['file_types'] = $types;
+			}
+			if ( isset( $f['max_mb'] ) && is_numeric( $f['max_mb'] ) && (float) $f['max_mb'] > 0 ) {
+				$row['max_mb'] = min( 1024.0, round( (float) $f['max_mb'], 2 ) );
+			}
+		}
 		// Restrict per_char on non-text-like.
 		if ( 'per_char' === $row['price_type'] && ! in_array( $row['type'], self::text_like_types(), true ) ) {
 			$row['price_type'] = 'flat';
@@ -762,7 +772,10 @@ class SCLT_Product_Options {
 		$var_ids       = isset( $field['variation_ids'] ) ? array_map( 'absint', (array) $field['variation_ids'] ) : array();
 
 		$attrs = ' class="sclt-option-field sclt-option-' . esc_attr( $type ) . '" data-field-id="' . esc_attr( $id ) . '" data-price-type="' . esc_attr( $price_type ) . '" data-price="' . esc_attr( (string) $price_amt ) . '" data-required="' . ( $req ? '1' : '0' ) . '"';
-		if ( $show_if_field ) {
+		if ( ! empty( $field['conditions']['rules'] ) && is_array( $field['conditions']['rules'] ) ) {
+			// AND/OR rules; option-logic.js evaluates them exactly like evaluate_conditions().
+			$attrs .= ' data-sclt-conditions="' . esc_attr( (string) wp_json_encode( $field['conditions'] ) ) . '"';
+		} elseif ( $show_if_field ) {
 			$attrs .= ' data-show-if-field="' . esc_attr( $show_if_field ) . '" data-show-if-value="' . esc_attr( $show_if_value ) . '"';
 		}
 		if ( $var_ids ) {
@@ -869,8 +882,8 @@ class SCLT_Product_Options {
 				echo '<textarea name="' . esc_attr( $name ) . '" id="sclt_option_' . esc_attr( $id ) . '" rows="3"' . ( $req ? ' required' : '' ) . $extra . '>' . esc_textarea( is_array( $def ) ? '' : (string) $def ) . '</textarea>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 				break;
 			case 'file':
-				echo '<input type="file" name="' . esc_attr( $name ) . '" id="sclt_option_' . esc_attr( $id ) . '"' . ( $req ? ' required' : '' ) . ' />';
-				echo '<span class="sclt-file-hint">' . esc_html__( 'File name is stored with the order.', 'storecanvas-lite' ) . '</span>';
+				echo '<input type="file" name="' . esc_attr( $name ) . '" id="sclt_option_' . esc_attr( $id ) . '" accept="' . esc_attr( SCLT_Option_Files::accept_attr( $field ) ) . '" data-max-bytes="' . esc_attr( (string) SCLT_Option_Files::field_max_bytes( $field ) ) . '"' . ( $req ? ' required' : '' ) . ' />';
+				echo ' <span class="sclt-file-hint">' . esc_html( SCLT_Option_Files::hint( $field ) ) . '</span>';
 				break;
 			case 'checkbox':
 				$chk = ( $def && '0' !== (string) $def ) ? ' checked' : '';

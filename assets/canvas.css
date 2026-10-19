@@ -1,0 +1,33 @@
+/* StoreCanvas Lite: customer design canvas (product page). */
+@font-face {
+	font-family: "SCLT Bebas Neue";
+	src: url("fonts/sclt-bebas-neue.ttf") format("truetype");
+	font-display: swap;
+}
+@font-face {
+	font-family: "SCLT Dancing Script";
+	src: url("fonts/sclt-dancing-script.ttf") format("truetype");
+	font-display: swap;
+}
+.sclt-canvas { margin: 1em 0 1.25em; padding: 12px; border: 1px solid #ddd; border-radius: 6px; background: #fff; color: #1e1e1e; max-width: 640px; box-sizing: border-box; }
+.sclt-canvas *, .sclt-canvas *::before, .sclt-canvas *::after { box-sizing: border-box; }
+.sclt-canvas__title { margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.sclt-canvas__fee { font-size: .9em; color: #555; }
+.sclt-canvas__stage-wrap { position: relative; width: 100%; background: #f3f3f3; border-radius: 4px; overflow: hidden; }
+.sclt-canvas__stage { display: block; width: 100%; height: auto; touch-action: none; cursor: default; outline: none; }
+.sclt-canvas__stage:focus-visible { box-shadow: 0 0 0 3px #2271b1; }
+.sclt-canvas__tools { margin-top: 10px; }
+.sclt-canvas__row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin: 0 0 8px; }
+.sclt-canvas__row label { display: flex; flex-direction: column; gap: 2px; font-size: .9em; margin: 0; }
+.sclt-canvas__row label.sclt-canvas__check { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 6px; }
+.sclt-canvas__grow { flex: 1 1 180px; min-width: 0; }
+.sclt-canvas__row input[type="text"], .sclt-canvas__row select { width: 100%; min-width: 0; min-height: 36px; }
+.sclt-canvas__row input[type="range"] { width: 100%; }
+.sclt-canvas__row input[type="color"] { width: 44px; height: 36px; padding: 2px; }
+.sclt-canvas__row input[type="file"] { max-width: 100%; }
+.sclt-canvas__btn { min-height: 36px; }
+.sclt-canvas__btn[disabled] { opacity: .5; cursor: not-allowed; }
+.sclt-canvas__msg { min-height: 1.2em; margin: 4px 0 0; font-size: .9em; }
+.sclt-canvas__msg.is-error { color: #b32d2e; }
+.sclt-canvas.is-text .sclt-canvas__text-only { display: flex; }
+.sclt-canvas:not(.is-text) .sclt-canvas__text-only { display: none; }

@@ -266,8 +266,8 @@ class SCLT_Cart_Order {
 	/**
 	 * Raw submitted option values for an add-to-cart request (unsanitized; callers
 	 * sanitize per field). File-type fields arrive in $_FILES, so the uploaded file's
-	 * name is merged in under its field id. Only the sanitized file name is kept; the
-	 * uploaded file itself is never moved, stored or read.
+	 * name is merged in under its field id. The file itself is checked and stored by
+	 * SCLT_Option_Files (validate_add_to_cart / add_cart_item_data).
 	 *
 	 * @return array Field id => value.
 	 */
@@ -345,6 +345,23 @@ class SCLT_Cart_Order {
 				}
 			}
 
+			// File upload: allowed type, real content and size.
+			if ( 'file' === $type && is_string( $val ) && '' !== $val ) {
+				$file  = SCLT_Option_Files::posted_file( $fid );
+				$check = $file ? SCLT_Option_Files::check( $file, $field ) : null;
+				if ( ! $file || is_wp_error( $check ) ) {
+					/* translators: %s: field label */
+					wc_add_notice( $check ? $check->get_error_message() : sprintf( __( 'The file for “%s” was not received. Please try again.', 'storecanvas-lite' ), $lab ), 'error' );
+					$passed = false;
+					continue;
+				}
+				if ( ! SCLT_Canvas::upload_rate_ok() ) {
+					wc_add_notice( __( 'Too many uploads. Please wait a few minutes and try again.', 'storecanvas-lite' ), 'error' );
+					$passed = false;
+					continue;
+				}
+			}
+
 			// Char limits.
 			if ( in_array( $type, SCLT_Product_Options::text_like_types(), true ) && is_string( $val ) && '' !== $val ) {
 				$len = strlen( $val );
@@ -395,7 +412,6 @@ class SCLT_Cart_Order {
 				wc_add_notice( sprintf( __( '“%s” must be a valid date.', 'storecanvas-lite' ), $lab ), 'error' );
 				$passed = false;
 			}
-
 		}
 
 		$stock_err = self::validate_aggregated_option_stock( self::current_cart_items(), $product_id, $options, $quantity );
@@ -420,6 +436,7 @@ class SCLT_Cart_Order {
 		if ( $posted ) {
 			$options = array();
 			$labels  = array();
+			$files   = array();
 			$extra   = 0.0;
 			foreach ( $posted as $fid => $val ) {
 				$fid = sanitize_key( $fid );
@@ -458,6 +475,25 @@ class SCLT_Cart_Order {
 					continue;
 				}
 
+				if ( 'file' === $type && '' !== $val ) {
+					// Throwing here makes WooCommerce show the message and skip the add to cart.
+					$file  = SCLT_Option_Files::posted_file( $fid );
+					$check = $file ? SCLT_Option_Files::check( $file, $field ) : null;
+					if ( ! $file || is_wp_error( $check ) ) {
+						throw new Exception( $check ? esc_html( $check->get_error_message() ) : esc_html__( 'Your file was not received. Please try again.', 'storecanvas-lite' ) );
+					}
+					$stored = SCLT_Option_Files::store( $file, $check );
+					if ( '' === $stored ) {
+						/* translators: %s: field label */
+						throw new Exception( esc_html( sprintf( __( 'The file for “%s” could not be saved. Please try again.', 'storecanvas-lite' ), $field['label'] ?? $fid ) ) );
+					}
+					$files[ $fid ] = array(
+						'file' => $stored,
+						'name' => $val,
+						'size' => (int) $file['size'],
+					);
+				}
+
 				$options[ $fid ] = $val;
 				$labels[ $fid ]  = array(
 					'label' => $field['label'] ?? $fid,
@@ -469,6 +505,9 @@ class SCLT_Cart_Order {
 				$cart_item_data[ SCLT_Plugin::CART_OPTIONS ] = $options;
 				$cart_item_data['sclt_option_labels']        = $labels;
 				$cart_item_data['sclt_price_extra']          = $extra;
+			}
+			if ( $files ) {
+				$cart_item_data[ SCLT_Option_Files::CART_KEY ] = $files;
 			}
 		}
 
@@ -826,7 +865,7 @@ class SCLT_Cart_Order {
 		if ( ! is_array( $cart_item ) ) {
 			return false;
 		}
-		$keys = array( 'sclt_price_extra', 'sclt_option_labels', SCLT_Plugin::CART_OPTIONS );
+		$keys = array( 'sclt_price_extra', 'sclt_option_labels', SCLT_Plugin::CART_OPTIONS, 'sclt_design' );
 		foreach ( $keys as $key ) {
 			if ( array_key_exists( $key, $cart_item ) ) {
 				return true;
@@ -919,9 +958,15 @@ class SCLT_Cart_Order {
 		if ( ! is_array( $cart_item ) ) {
 			return $cart_item;
 		}
-		$opt_key = class_exists( 'SCLT_Plugin' ) ? SCLT_Plugin::CART_OPTIONS : 'sclt_options';
-		$options = isset( $cart_item[ $opt_key ] ) && is_array( $cart_item[ $opt_key ] ) ? $cart_item[ $opt_key ] : null;
+		$opt_key    = class_exists( 'SCLT_Plugin' ) ? SCLT_Plugin::CART_OPTIONS : 'sclt_options';
+		$options    = isset( $cart_item[ $opt_key ] ) && is_array( $cart_item[ $opt_key ] ) ? $cart_item[ $opt_key ] : null;
+		$design_fee = class_exists( 'SCLT_Canvas' ) ? SCLT_Canvas::fee_for_cart_item( $cart_item ) : 0.0;
 		if ( ! $options ) {
+			if ( ! empty( $cart_item['sclt_design'] ) ) {
+				// Design-only line: the design fee is its whole surcharge.
+				$cart_item                     = self::capture_unmodified_base_price( $cart_item );
+				$cart_item['sclt_price_extra'] = (float) $design_fee;
+			}
 			return $cart_item;
 		}
 		if ( null === $fields ) {
@@ -935,7 +980,7 @@ class SCLT_Cart_Order {
 		}
 		$cart_item = self::capture_unmodified_base_price( $cart_item );
 		$base     = self::unmodified_base_price( $cart_item );
-		$cart_item['sclt_price_extra'] = self::extra_from_options( $options, $fields, $base );
+		$cart_item['sclt_price_extra'] = self::extra_from_options( $options, $fields, $base ) + (float) $design_fee;
 		return $cart_item;
 	}
 
@@ -1009,8 +1054,8 @@ class SCLT_Cart_Order {
 	public function display_item_data( $item_data, $cart_item ) {
 		if ( ! empty( $cart_item['sclt_option_labels'] ) && is_array( $cart_item['sclt_option_labels'] ) ) {
 			foreach ( $cart_item['sclt_option_labels'] as $meta ) {
-				if ( ! is_array( $meta ) ) {
-					continue;
+				if ( ! is_array( $meta ) || '' === trim( (string) ( is_array( $meta['value'] ?? '' ) ? implode( '', $meta['value'] ) : ( $meta['value'] ?? '' ) ) ) ) {
+					continue; // Nothing chosen: no empty "Size:" line in the cart.
 				}
 				$item_data[] = array(
 					'key'   => $meta['label'] ?? '',
@@ -1042,7 +1087,7 @@ class SCLT_Cart_Order {
 			// Show any non-zero options total, including a negative (discount) so the cart line
 			// matches what is actually charged.
 			$item_data[] = array(
-				'key'   => __( 'Options total', 'storecanvas-lite' ),
+				'key'   => ( empty( $cart_item[ SCLT_Plugin::CART_OPTIONS ] ) && ! empty( $cart_item['sclt_design'] ) ) ? __( 'Design fee', 'storecanvas-lite' ) : __( 'Options total', 'storecanvas-lite' ),
 				'value' => wp_strip_all_tags( wc_price( (float) $cart_item['sclt_price_extra'] ) ),
 			);
 		}
@@ -1073,7 +1118,10 @@ class SCLT_Cart_Order {
 			if ( '' === $k || '' === $v ) {
 				continue;
 			}
-			$out[] = array( 'key' => $k, 'value' => $v );
+			$out[] = array(
+				'key'   => $k,
+				'value' => $v,
+			);
 		}
 		return $out;
 	}
@@ -1123,6 +1171,9 @@ class SCLT_Cart_Order {
 		}
 		if ( ! empty( $values['sclt_price_extra'] ) ) {
 			$item->add_meta_data( 'sclt_price_extra', (float) $values['sclt_price_extra'], true );
+		}
+		if ( ! empty( $values[ SCLT_Option_Files::CART_KEY ] ) ) {
+			SCLT_Option_Files::to_order_item( $item, $values );
 		}
 	}
 
@@ -1291,10 +1342,8 @@ class SCLT_Cart_Order {
 					$order->update_meta_data( '_sclt_option_stock_applied', 1 );
 					$order->delete_meta_data( '_sclt_option_stock_restored' );
 				}
-			} else {
-				if ( method_exists( $order, 'update_meta_data' ) ) {
-					$order->update_meta_data( '_sclt_option_stock_restored', 1 );
-				}
+			} elseif ( method_exists( $order, 'update_meta_data' ) ) {
+				$order->update_meta_data( '_sclt_option_stock_restored', 1 );
 			}
 			if ( method_exists( $order, 'save' ) ) {
 				$order->save();
@@ -1882,7 +1931,8 @@ class SCLT_Cart_Order {
 			echo '</ul>';
 		}
 		if ( $extra ) {
-			echo '<p style="margin:4px 0 0;">' . esc_html__( 'Options extra:', 'storecanvas-lite' ) . ' ' . wp_kses_post( wc_price( (float) $extra ) ) . '</p>';
+			$extra_label = ( ! $options && ! $labels ) ? __( 'Design fee:', 'storecanvas-lite' ) : __( 'Options extra:', 'storecanvas-lite' );
+			echo '<p style="margin:4px 0 0;">' . esc_html( $extra_label ) . ' ' . wp_kses_post( wc_price( (float) $extra ) ) . '</p>';
 		}
 		echo '</div>';
 	}

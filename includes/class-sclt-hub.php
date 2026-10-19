@@ -314,8 +314,8 @@ class SCLT_Hub {
 		// Offer.
 		if ( self::should_show_offer( (bool) get_user_meta( get_current_user_id(), self::OFFER_META, true ) ) ) {
 			echo '<section class="sclt-hub-card sclt-hub-offer"><h2>' . esc_html__( 'StoreCanvas: 20% off for StoreCanvas Lite users', 'storecanvas-lite' ) . '</h2>';
-			echo '<p>' . esc_html__( 'Adds the live design canvas (customers place artwork and text on product mockups), print-ready PNG/SVG/PDF exports, and a production desk.', 'storecanvas-lite' ) . '</p>';
-			echo '<p>' . esc_html__( 'Price: $79/year (or $10 for one month). Enter this code at checkout on tillpress.com for 20% off a yearly license:', 'storecanvas-lite' ) . ' <code class="sclt-hub-code">' . esc_html( self::OFFER_CODE ) . '</code></p>';
+			echo '<p>' . esc_html__( 'Adds more product views and print areas to the design canvas, clipart, templates, print-ready PNG/SVG/PDF exports, and a production desk.', 'storecanvas-lite' ) . '</p>';
+			echo '<p>' . esc_html__( 'Enter this code at checkout on tillpress.com for 20% off a yearly license:', 'storecanvas-lite' ) . ' <code class="sclt-hub-code">' . esc_html( self::OFFER_CODE ) . '</code></p>';
 			echo '<p class="sclt-hub-actions"><a class="button button-primary" href="' . esc_url( self::PRO_URL ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'See StoreCanvas', 'storecanvas-lite' ) . '</a> ';
 			$this->action_button( 'sclt_offer_dismiss', __( 'Hide this offer', 'storecanvas-lite' ), 'button-link' );
 			echo '</p>';
