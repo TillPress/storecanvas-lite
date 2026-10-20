@@ -47,6 +47,29 @@
 		}
 	}
 
+	// Quantity tier for this quantity: the highest minimum not above it. Mirrors
+	// SCLT_Qty_Tiers::tier_for(); the cart also counts this product's other cart lines.
+	function tierFor(tiers, qty) {
+		var best = null;
+		(tiers || []).forEach(function (t) {
+			if (t && qty >= (parseInt(t.min, 10) || 0)) best = t;
+		});
+		return best;
+	}
+
+	// Mirrors SCLT_Qty_Tiers::discounted_unit().
+	function discountedUnit(unit, tier) {
+		if (tier) {
+			var amount = parseFloat(tier.amount) || 0;
+			if (tier.type === 'fixed') {
+				unit -= amount;
+			} else {
+				unit -= unit * (Math.min(100, amount) / 100);
+			}
+		}
+		return unit < 0 ? 0 : unit;
+	}
+
 	function readValues(root) {
 		var values = {};
 		if (!root) return values;
@@ -119,9 +142,14 @@
 		// The server floors a discounted unit price at zero; mirror that so the preview agrees.
 		var unit = base + unitExtra;
 		if (unit < 0) unit = 0;
+		var tier = tierFor(c.tiers, qty);
+		var undiscounted = unit;
+		unit = discountedUnit(unit, tier);
 		return {
 			base: base,
 			extra: unitExtra,
+			tier: tier,
+			saving: undiscounted - unit,
 			unit: unit,
 			line: unit * qty,
 			qty: qty,
@@ -166,9 +194,20 @@
 		return el;
 	}
 
+	function hasPricing(c) {
+		return !!(c && ((c.fields && c.fields.length) || (c.tiers && c.tiers.length)));
+	}
+
+	function markTierRow(tier) {
+		var min = tier ? String(tier.min) : '1';
+		document.querySelectorAll('.sclt-qty-tiers tr[data-sclt-tier-min]').forEach(function (tr) {
+			tr.classList.toggle('is-active', tr.getAttribute('data-sclt-tier-min') === min);
+		});
+	}
+
 	function update() {
 		var c = cfg();
-		if (!c || !c.fields || !c.fields.length) return;
+		if (!hasPricing(c)) return;
 		var r = calc();
 		if (!r) return;
 		var html =
@@ -185,6 +224,15 @@
 				formatMoney(r.extra) +
 				'</span>';
 		}
+		if (r.tier && r.saving > 0.00001) {
+			html +=
+				' − <span class="sclt-live-tier">' +
+				((c.i18n && c.i18n.tier) || 'quantity discount') +
+				': ' +
+				formatMoney(r.saving) +
+				'</span>';
+		}
+		markTierRow(r.tier);
 		html +=
 			' = <strong class="sclt-live-total">' +
 			formatMoney(r.unit) +
@@ -231,7 +279,7 @@
 
 	function bind() {
 		var c = cfg();
-		if (!c || !c.fields || !c.fields.length) return;
+		if (!hasPricing(c)) return;
 		document.addEventListener('change', function (e) {
 			if (!e.target) return;
 			if (e.target.closest && (e.target.closest('.sclt-options') || e.target.matches('input.qty') || e.target.name === 'quantity')) {

@@ -4,12 +4,12 @@ Tags: woocommerce, product options, product designer, extra product options, con
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 7.0
 
-Free WooCommerce product options and a design canvas: 15 field types, AND/OR conditions, file uploads, per-choice pricing and option stock.
+Free WooCommerce product options and a design canvas: 15 field types, AND/OR conditions, file uploads, quantity discounts and option stock.
 
 == Description ==
 
@@ -26,6 +26,7 @@ StoreCanvas Lite adds extra choices to your WooCommerce products: sizes, finishe
 * **15 field types:** dropdown, radio buttons, checkbox, multi-select, short text, long text, email, phone, phone (tel), number, date, colour picker, image choice, file upload and section heading.
 * **5 ways to price a field:** a flat fee, a percent of the product price, an amount times a number the customer enters, an amount per character typed (engraving), or a different price for each choice (lookup table). Negative amounts work as discounts; the price never drops below zero.
 * **Live price** on the product page that matches what the cart charges, on classic and block themes.
+* **Quantity discounts:** "buy 10 or more, 10% off each" or "25 or more, $3 off each", up to 10 tiers per product. A "Buy more, pay less" table shows on the product page, and the quantity counts every item of that product in the cart, in any option or size.
 * **Conditional fields with AND/OR rules:** show a field only when other fields match, for example "Gift note" when "Gift wrap" is ticked, or "Rush date" when Size is Large AND Quantity is more than 10. Rules can test is, is not, contains, more or less than, empty and "is one of". Hidden fields are never charged or required.
 * **File uploads with limits:** customers attach a file (a logo, a photo, a print-ready PDF) to the order. You choose the allowed types (JPG, PNG, GIF, WebP, PDF) and a size limit per field. Every file is checked on the server, stored in a protected folder and offered to you as a download link on the order.
 * **Stock per choice:** give any choice its own stock count. Sold-out choices are disabled on the product page, stock goes down when an order is placed and comes back when an order is cancelled, fails, or a refund restocks it.
@@ -87,7 +88,9 @@ A hidden field is never required and never charged. Fields can also be limited t
 
 Click **Update**. On the product page the canvas appears above Add to cart. When the order comes in, open it in WooCommerce → Orders: the line item shows the design preview and links to download the preview PNG and each photo the customer uploaded, plus the text, font and colour used.
 
-**Step 9: Test an order.** Add the product to the cart with some choices. The cart and checkout show each choice and the total. After checkout, the order screen in WooCommerce → Orders lists every choice under the line item.
+**Step 9 (optional): Quantity discounts.** On the product's StoreCanvas Lite tab, find **Quantity discounts**. In each row, type the quantity the discount starts at (2 or more), the discount, and whether it is a percentage or an amount off each item. Example: 10, 10, % off each; then 25, 15, % off each. Empty rows are skipped. The discount comes off the whole item price, options included, and the cart shows it on the line. The product page lists the tiers in a "Buy more, pay less" table and the live price shows the saving for the quantity chosen.
+
+**Step 10: Test an order.** Add the product to the cart with some choices. The cart and checkout show each choice and the total. After checkout, the order screen in WooCommerce → Orders lists every choice under the line item.
 
 = Good to know =
 
@@ -211,6 +214,11 @@ Lite's canvas has one print area on the main product image. The paid StoreCanvas
 
 == Changelog ==
 
+
+= 1.3.0 =
+* New: quantity discounts. On a product's StoreCanvas Lite tab, add up to 10 tiers such as "10 or more: 10% off each" or "25 or more: $3 off each". The tier comes from the total quantity of that product in the cart, across every option and variation, and the discount applies to the whole item price including options.
+* New: a "Buy more, pay less" table on the product page, the saving in the live price, and a "Quantity discount" line in the cart, checkout, emails and order screen.
+* Prices are worked out on the server from the current catalog price every time the cart is totalled, so a discount never stacks and lowering the quantity brings the full price back.
 = 1.2.0 =
 * New: AND/OR conditions in the field builder. Click "Add condition" to show a field only when all (AND) or any (OR) of several rules match, with tests such as is, is not, contains, more or less than, empty and "is one of". The product page shows and hides fields with the same rules the server uses. Products using the old "Show if field / equals" boxes keep working.
 * New: file upload fields now keep the file. Choose the allowed types (JPG, PNG, GIF, WebP, PDF) and a size limit per field; customers see both and get an instant message when a file does not fit.
@@ -275,6 +283,9 @@ Lite's canvas has one print area on the main product image. The paid StoreCanvas
 * First public release: 15 field types, flat/percent/quantity/per-character/lookup pricing, multi-rule conditional logic, per-choice option stock, reusable option groups, live price preview.
 
 == Upgrade Notice ==
+
+= 1.3.0 =
+Adds quantity discount tiers per product. Nothing changes until you add a tier.
 
 = 1.2.0 =
 AND/OR conditions in the builder, and file upload fields that keep the file with type and size limits.

@@ -9,6 +9,7 @@ No license key, no account, no phone-home. Free forever.
 - Live price preview on the product page (classic and block themes)
 - Multi-rule show/hide conditions (AND/OR)
 - Per-choice option stock
+- Quantity discounts: up to 10 tiers per product, such as "10 or more, 10% off each", with a "Buy more, pay less" table on the product page
 - Reusable option groups (assign by product or category)
 
 Paid [StoreCanvas](https://tillpress.com/storecanvas/) adds the live design canvas (customers place artwork and text on mockups), print-ready exports, and production workflow. Lite is the options engine only and is never locked.
@@ -51,7 +52,11 @@ On block themes (Twenty Twenty-Five and similar), 1.0.1 is required — 1.0.0 sh
 
 On dropdown, radio, multi-select, or image-choice, give a choice a stock quantity. Sold-out choices are disabled. Stock decrements when an order is placed and restores if the order is cancelled or fails.
 
-### 5. What the customer sees on the order
+### 5. Quantity discounts
+
+In the product's **StoreCanvas Lite** tab, under **Quantity discounts**, fill a row per tier: the quantity it starts at (2 or more), the discount, and % off or an amount off each item. The quantity counts every item of that product in the cart, in any option or size, and the discount applies to the full item price including options.
+
+### 6. What the customer sees on the order
 
 Choices and the options total show on the order screen, in emails, and on the confirmation. If you still see raw `sclt_price_extra`, you are on 1.0.0 — install 1.0.1.
 

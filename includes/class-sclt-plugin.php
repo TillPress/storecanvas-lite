@@ -65,7 +65,14 @@ class SCLT_Plugin {
 
 		// Live price preview for options pricing.
 		$pricing_fields = $product_id ? SCLT_Product_Options::pricing_config_for_product( $product_id ) : array();
-		if ( $pricing_fields ) {
+		$qty_tiers      = ( $product_id && class_exists( 'SCLT_Qty_Tiers' ) ) ? SCLT_Qty_Tiers::live_price_config( $product_id ) : array();
+		$tier_product   = ( $qty_tiers && ! $pricing_fields ) ? wc_get_product( $product_id ) : null;
+		if ( $tier_product && $tier_product->is_type( 'variable' ) ) {
+			// The preview only knows one base price, so it would show a wrong figure for a
+			// variable product. The tier table on the page still lists the discounts.
+			$qty_tiers = array();
+		}
+		if ( $pricing_fields || $qty_tiers ) {
 			$wc_product = $product_id ? wc_get_product( $product_id ) : null;
 			$base       = $wc_product ? (float) $wc_product->get_price() : 0.0;
 			wp_enqueue_script(
@@ -82,6 +89,7 @@ class SCLT_Plugin {
 					'productId'   => $product_id,
 					'basePrice'   => $base,
 					'fields'      => $pricing_fields,
+					'tiers'       => $qty_tiers,
 					'symbol'      => get_woocommerce_currency_symbol(),
 					'currencyPos' => get_option( 'woocommerce_currency_pos', 'left' ),
 					'decimals'    => wc_get_price_decimals(),
@@ -89,6 +97,7 @@ class SCLT_Plugin {
 						'base'   => __( 'Base', 'storecanvas-lite' ),
 						'extras' => __( 'options', 'storecanvas-lite' ),
 						'line'   => __( 'line', 'storecanvas-lite' ),
+						'tier'   => __( 'quantity discount', 'storecanvas-lite' ),
 					),
 				)
 			);
