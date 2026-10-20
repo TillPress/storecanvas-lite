@@ -117,6 +117,9 @@ class SCLT_Admin_Product {
 			</div>
 
 			<?php
+			if ( class_exists( 'SCLT_Qty_Tiers' ) ) {
+				SCLT_Qty_Tiers::render_admin_section( $sclt_product_id );
+			}
 			if ( class_exists( 'SCLT_Canvas' ) ) {
 				SCLT_Canvas::render_admin_section( $sclt_product_id );
 			}
@@ -170,6 +173,9 @@ class SCLT_Admin_Product {
 		}
 		update_post_meta( $post_id, SCLT_Plugin::META_OPTION_GROUPS, array_values( array_unique( array_filter( $group_ids ) ) ) );
 
+		if ( class_exists( 'SCLT_Qty_Tiers' ) ) {
+			SCLT_Qty_Tiers::save_settings( $post_id );
+		}
 		if ( class_exists( 'SCLT_Canvas' ) ) {
 			SCLT_Canvas::save_settings( $post_id );
 		}

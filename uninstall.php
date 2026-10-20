@@ -27,6 +27,7 @@ delete_transient( 'sclt_option_groups_map_v1' );
 // Product meta created by this plugin.
 delete_post_meta_by_key( '_sclt_options' );
 delete_post_meta_by_key( '_sclt_option_group_ids' );
+delete_post_meta_by_key( '_sclt_qty_tiers' );
 
 // Option-group CPT meta (only meaningful if the merchant also deletes the
 // group posts; harmless otherwise since the posts are kept).
