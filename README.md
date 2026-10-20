@@ -17,16 +17,11 @@ Author: [Tillpress](https://tillpress.com) (trade name of Alex Software Holdings
 
 ## Install
 
-**Use the Release zip, not GitHub’s “Source code” download.** WordPress needs a folder named `storecanvas-lite`.
+Easiest: in wp-admin go to **Plugins → Add New**, search for **StoreCanvas Lite**, then install and activate. It is listed at [wordpress.org/plugins/storecanvas-lite](https://wordpress.org/plugins/storecanvas-lite/). WooCommerce must already be active. Then edit a product → **StoreCanvas Lite** tab, or go to **Products → Option groups**.
 
-1. Download `storecanvas-lite-1.0.1.zip` from [Releases](https://github.com/TillPress/storecanvas-lite/releases/latest).
-2. In wp-admin: **Plugins → Add New → Upload Plugin**.
-3. Activate. WooCommerce must already be active.
-4. Edit a product → **StoreCanvas Lite** tab, or go to **Products → Option groups**.
+Installing from this repo instead? WordPress needs a folder named `storecanvas-lite`, and GitHub’s “Source code” zip is named `storecanvas-lite-main`, so rename the folder before uploading it (or use the wordpress.org zip).
 
 Requirements: WordPress 6.2+, PHP 7.4+, WooCommerce 7.0+.
-
-Not yet listed on wordpress.org (slug reserved for the free plugin). This GitHub Release is the installable zip.
 
 ## Setup
 
@@ -86,7 +81,7 @@ Lite steps aside so you do not get duplicate fields or double charges. You can d
 
 ### Can I install from “Code → Download ZIP”?
 
-No. Use the **Release** asset. GitHub’s source zip has the wrong folder name.
+Only if you rename the unzipped folder to `storecanvas-lite` first. The simpler route is installing from wordpress.org.
 
 ### WooCommerce options panel looks broken?
 
