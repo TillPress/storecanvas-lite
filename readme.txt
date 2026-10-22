@@ -4,7 +4,7 @@ Tags: woocommerce, product options, product designer, extra product options, con
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 7.0
@@ -214,6 +214,12 @@ Lite's canvas has one print area on the main product image. The paid StoreCanvas
 
 == Changelog ==
 
+
+
+= 1.3.1 =
+* Fix: no more "translation loading was triggered too early" notice on WordPress 6.7 and later.
+* Fix: internal stock bookkeeping no longer shows on the admin order screen.
+* The "image too large" message now says what the limit is.
 
 = 1.3.0 =
 * New: quantity discounts. On a product's StoreCanvas Lite tab, add up to 10 tiers such as "10 or more: 10% off each" or "25 or more: $3 off each". The tier comes from the total quantity of that product in the cart, across every option and variation, and the discount applies to the whole item price including options.

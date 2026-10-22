@@ -70,6 +70,15 @@ class SCLT_Canvas {
 		add_filter( 'woocommerce_product_add_to_cart_url', array( $this, 'loop_url' ), 20, 2 );
 		add_filter( 'woocommerce_product_add_to_cart_text', array( $this, 'loop_text' ), 20, 2 );
 
+		// Schedule on init: scheduling runs the cron_schedules filter, where WooCommerce
+		// translates its own labels, which must not happen before init (WP 6.7+ notice).
+		add_action( 'init', array( __CLASS__, 'schedule_cleanup' ) );
+	}
+
+	/**
+	 * Daily cleanup of abandoned design files.
+	 */
+	public static function schedule_cleanup() {
 		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::CRON ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::CRON );
 		}
@@ -184,6 +193,18 @@ class SCLT_Canvas {
 	 *
 	 * @return int
 	 */
+	/**
+	 * "Too large" message that says what the limit is.
+	 *
+	 * @param int $max_bytes Limit; defaults to the current upload limit.
+	 * @return string
+	 */
+	public static function too_big_message( $max_bytes = 0 ) {
+		$max_bytes = (int) $max_bytes > 0 ? (int) $max_bytes : self::max_upload_bytes();
+		/* translators: %s: size limit such as "2 MB". */
+		return sprintf( __( 'That image is too large. The limit is %s.', 'storecanvas-lite' ), size_format( $max_bytes ) );
+	}
+
 	public static function max_upload_bytes() {
 		$max = (int) apply_filters( 'sclt_canvas_max_upload_bytes', 5 * 1024 * 1024 );
 		if ( function_exists( 'wp_max_upload_size' ) ) {
@@ -796,7 +817,7 @@ class SCLT_Canvas {
 				'imageLayer'  => __( 'Image', 'storecanvas-lite' ),
 				'maxLayers'   => __( 'This design already has the maximum number of layers.', 'storecanvas-lite' ),
 				'badType'     => __( 'Please choose a PNG or JPEG image.', 'storecanvas-lite' ),
-				'tooBig'      => __( 'That image is too large.', 'storecanvas-lite' ),
+				'tooBig'      => self::too_big_message(),
 				'uploading'   => __( 'Uploading image…', 'storecanvas-lite' ),
 				'uploaded'    => __( 'Image added.', 'storecanvas-lite' ),
 				'uploadFail'  => __( 'The image could not be uploaded. Please try again.', 'storecanvas-lite' ),
@@ -952,20 +973,20 @@ class SCLT_Canvas {
 			return __( 'No image was received.', 'storecanvas-lite' );
 		}
 		if ( UPLOAD_ERR_INI_SIZE === (int) $file['error'] || UPLOAD_ERR_FORM_SIZE === (int) $file['error'] ) {
-			return __( 'That image is too large.', 'storecanvas-lite' );
+			return self::too_big_message( $max_bytes );
 		}
 		if ( UPLOAD_ERR_OK !== (int) $file['error'] ) {
 			return __( 'No image was received.', 'storecanvas-lite' );
 		}
 		if ( (int) $file['size'] <= 0 || (int) $file['size'] > $max_bytes ) {
-			return __( 'That image is too large.', 'storecanvas-lite' );
+			return self::too_big_message( $max_bytes );
 		}
 		if ( $check_uploaded && ! is_uploaded_file( $file['tmp_name'] ) ) {
 			return __( 'No image was received.', 'storecanvas-lite' );
 		}
 		$head = (string) file_get_contents( $file['tmp_name'], false, null, 0, (int) $max_bytes + 1 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local temp upload.
 		if ( strlen( $head ) > $max_bytes ) {
-			return __( 'That image is too large.', 'storecanvas-lite' );
+			return self::too_big_message( $max_bytes );
 		}
 		$info = self::inspect_image_bytes( $head, 8000 );
 		return is_array( $info ) ? true : $info;

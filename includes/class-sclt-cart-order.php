@@ -1095,7 +1095,7 @@ class SCLT_Cart_Order {
 	}
 
 	/** Internal StoreCanvas Lite order-item meta keys (never shown as raw lines). */
-	const INTERNAL_ITEM_META = array( 'sclt_options', 'sclt_option_labels', 'sclt_price_extra' );
+	const INTERNAL_ITEM_META = array( 'sclt_options', 'sclt_option_labels', 'sclt_price_extra', '_sclt_stock_applied_qty', '_sclt_stock_restored_qty' );
 
 	/**
 	 * Readable lines for an order item's choices. Pure.
