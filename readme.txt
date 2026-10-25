@@ -4,7 +4,7 @@ Tags: woocommerce, product options, product designer, extra product options, con
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 7.0
@@ -216,6 +216,9 @@ Lite's canvas has one print area on the main product image. The paid StoreCanvas
 
 
 
+
+= 1.3.2 =
+* Refreshed admin look, shared across Tillpress plugins: rounded cards, pill tabs and buttons, settings forms and tables as cards. Only the plugin's own screens change; no settings or data change.
 = 1.3.1 =
 * Fix: no more "translation loading was triggered too early" notice on WordPress 6.7 and later.
 * Fix: internal stock bookkeeping no longer shows on the admin order screen.
