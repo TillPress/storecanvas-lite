@@ -1,8 +1,8 @@
 # StoreCanvas Lite
 
-**Free WooCommerce product options** — 15 field types, conditional logic, pricing, and option stock.
+**Free WooCommerce product options and a customer design canvas** — 15 field types, conditional logic, pricing, option stock, and text/photo designs on one print area.
 
-No license key, no account, no phone-home. Free forever.
+No license key, no account, no license checks or telemetry. Free forever. Tillpress is contacted only when you choose to send a support ticket; see the support details below.
 
 - 15 field types: dropdown, radio, checkbox, multi-select, short text, long text, email, phone, phone (tel), number, date, color, image choice, file upload, section heading
 - Pricing: flat fee, percent of the product price, per quantity, per character, per-choice lookup table (negative amounts are discounts)
@@ -11,8 +11,10 @@ No license key, no account, no phone-home. Free forever.
 - Per-choice option stock
 - Quantity discounts: up to 10 tiers per product, such as "10 or more, 10% off each", with a "Buy more, pay less" table on the product page
 - Reusable option groups (assign by product or category)
+- Customer design canvas: one print area on the product's main image, text with bundled fonts, and PNG/JPEG photos
+- Move, resize, rotate and reorder design layers; order previews and original uploaded photos stay on your site
 
-Paid [StoreCanvas](https://tillpress.com/storecanvas/) adds the live design canvas (customers place artwork and text on mockups), print-ready exports, and production workflow. Lite is the options engine only and is never locked.
+Paid [StoreCanvas](https://tillpress.com/storecanvas/) adds multiple product views and print areas, clipart, templates, print-ready PNG/SVG/PDF exports, and production workflow. Lite includes its own design canvas and options engine, with no license key or time limit.
 
 Author: [Tillpress](https://tillpress.com) (trade name of Alex Software Holdings LLC). Contact: info@tillpress.com.
 
@@ -20,7 +22,7 @@ Author: [Tillpress](https://tillpress.com) (trade name of Alex Software Holdings
 
 Easiest: in wp-admin go to **Plugins → Add New**, search for **StoreCanvas Lite**, then install and activate. It is listed at [wordpress.org/plugins/storecanvas-lite](https://wordpress.org/plugins/storecanvas-lite/). WooCommerce must already be active. Then edit a product → **StoreCanvas Lite** tab, or go to **Products → Option groups**.
 
-Installing from this repo instead? WordPress needs a folder named `storecanvas-lite`, and GitHub’s “Source code” zip is named `storecanvas-lite-main`, so rename the folder before uploading it (or use the wordpress.org zip).
+Installing from this repo instead? Extract GitHub's source archive, rename the plugin folder to `storecanvas-lite`, then re-zip that folder for upload or copy it into `wp-content/plugins/`. The WordPress.org ZIP is ready to upload.
 
 Requirements: WordPress 6.2+, PHP 7.4+, WooCommerce 7.0+.
 
@@ -46,11 +48,11 @@ Requirements: WordPress 6.2+, PHP 7.4+, WooCommerce 7.0+.
 
 On a field, add show-if rules. Multiple rules support AND/OR. Operators: is, is not, contains, does not contain, greater/less than (or equal), empty, not empty, in-list.
 
-On block themes (Twenty Twenty-Five and similar), 1.0.1 is required — 1.0.0 show-if did not run there.
+Conditional fields work with classic and block themes. See [readme.txt](readme.txt) for the full setup guide and changelog.
 
 ### 4. Option stock
 
-On dropdown, radio, multi-select, or image-choice, give a choice a stock quantity. Sold-out choices are disabled. Stock decrements when an order is placed and restores if the order is cancelled or fails.
+On dropdown, radio, multi-select, or image-choice, give a choice a stock quantity. Sold-out choices are disabled. Stock decrements when an order is placed and restores if the order is cancelled or fails. On a refund, stock returns for the refunded quantity only when you tick **Restock refunded items**.
 
 ### 5. Quantity discounts
 
@@ -58,7 +60,18 @@ In the product's **StoreCanvas Lite** tab, under **Quantity discounts**, fill a 
 
 ### 6. What the customer sees on the order
 
-Choices and the options total show on the order screen, in emails, and on the confirmation. If you still see raw `sclt_price_extra`, you are on 1.0.0 — install 1.0.1.
+Choices and the options total show on the order screen, in emails, and on the confirmation.
+
+### 7. Customer design canvas
+
+1. Set a main (featured) image on the product.
+2. Open its **StoreCanvas Lite** tab, find **Customer design canvas**, and tick **Let customers design this product**.
+3. Drag the print-area box on the image, or enter its position and size.
+4. Choose whether a design is required, whether customers may upload photos, the maximum number of layers, and any design fee. Update the product.
+
+Customers can add text and PNG/JPEG photos, then move, resize, rotate and reorder layers inside that print area. The design preview appears in the cart, checkout, order emails and My Account. The admin order screen provides the preview and original uploaded photos for download.
+
+Designs are stored on your own site. See [readme.txt](readme.txt) → Privacy for access controls, retention and what happens to design files on uninstall.
 
 ## Screenshots
 
@@ -74,7 +87,7 @@ Choices and the options total show on the order screen, in emails, and on the co
 
 ### Is there a license key or trial?
 
-No. Every Lite feature works without a key, trial, or phone-home.
+No. Lite's options and design canvas do not require a license key or a trial.
 
 ### How does pricing work?
 
@@ -82,11 +95,11 @@ Each field can add a flat fee, a percent of the product (or selected variation) 
 
 ### What if I also install paid StoreCanvas?
 
-Lite steps aside so you do not get duplicate fields or double charges. You can deactivate Lite.
+Lite steps aside while the paid StoreCanvas plugin is activated, even if its Pro entitlement has ended. There is no automatic switch to Lite on expiry. To use Lite's features instead, deactivate the paid plugin and activate Lite; configure the product's Lite options and canvas as needed.
 
 ### Can I install from “Code → Download ZIP”?
 
-Only if you rename the unzipped folder to `storecanvas-lite` first. The simpler route is installing from wordpress.org.
+Extract the archive, rename the plugin folder to `storecanvas-lite`, then re-zip that folder or copy it into `wp-content/plugins/`. The simpler route is installing from WordPress.org.
 
 ### WooCommerce options panel looks broken?
 
@@ -94,7 +107,9 @@ WooCommerce’s `.woocommerce_options_panel` floats labels into a 150px column. 
 
 ### Where do I get help?
 
-Email **info@tillpress.com**. Paid canvas product: [tillpress.com/storecanvas](https://tillpress.com/storecanvas/).
+Open **Products → StoreCanvas Lite help**, use the [WordPress.org support forum](https://wordpress.org/support/plugin/storecanvas-lite/), or email **info@tillpress.com**.
+
+The optional support form contacts Tillpress only after you tick the consent box and press **Send ticket**. It sends your name, reply address, topic, subject, message and site URL, plus a system report if selected. The generated report lists versions, theme and active plugins without credentials or customer/order data. See [readme.txt](readme.txt) → External services for the endpoint and privacy policy.
 
 ## License
 
