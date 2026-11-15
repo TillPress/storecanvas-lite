@@ -1,25 +1,36 @@
-=== StoreCanvas Lite ===
+=== StoreCanvas Lite – Product Options, Product Designer & Personalization for WooCommerce ===
 Contributors: alextechgamer
-Tags: woocommerce, product options, product designer, extra product options, conditional logic
+Tags: product options, product customizer, product designer, product personalization, extra product options
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 7.0
 
-Free WooCommerce product options and a design canvas: 15 field types, AND/OR conditions, file uploads, quantity discounts and option stock.
+Add WooCommerce product options and a live product designer: text, photos, engraving, file uploads, conditional fields and option prices. Free.
 
 == Description ==
 
-StoreCanvas Lite adds extra choices to your WooCommerce products: sizes, finishes, colours, engraving text, gift wrap, gift notes, rush production, file names and more. Each choice can change the price, and the price on the product page updates as the customer picks. Free forever, with no license key, no account and no phone-home.
+StoreCanvas Lite is a free WooCommerce product options and product personalization plugin. Add extra fields to any product (sizes, finishes, engraving text, gift wrap, file uploads), price each choice, and let customers place their own text and photos on the product with a live design canvas. It all runs on your own store: no SaaS subscription, no per-order fee, no credits, no license key and no phone-home.
 
-**What your customer sees.** Under the product's price, your option fields appear above the Add to cart button. As they choose, a line such as "Base: $14.00 + options: $13.30 = $27.30" updates live. Fields you mark as required must be filled before the item can be added to the cart. Their choices then follow the order everywhere: cart, checkout, order emails and the order screen in your admin.
+[Live demo](https://demo.tillpress.com/demo/storecanvas/) | [Documentation](https://tillpress.com/docs/storecanvas/) | [Support](https://tillpress.com/support/)
 
-**Let customers design it.** Turn on the **customer design canvas** for a product and your customer can put their own text and photos on the product image before buying: pick a font and colour, move, resize and rotate each layer, bring it forward or send it back, all inside the print area you drew. The preview and the original photos come with the order, ready to print. No account, no credits, no outside service: everything stays on your store.
+= Use it to =
 
-**What you set up.** On any product, open the **StoreCanvas Lite** tab in the Product data box and click **Add field**. Give the field a label, pick a type, choose how it is priced and (for dropdowns, radios and image choices) type the choices. That is all a basic option needs. Everything else (stock per choice, fields that only appear after another choice, fields reused across many products) is optional and explained step by step below.
+* Sell personalized gifts: names, dates and messages, priced per letter
+* Let customers upload a logo or photo and design it onto a mug, shirt or sign
+* Add paid extras like gift wrap, rush production or premium finishes
+* Show a field only when it matters (a gift note only when gift wrap is ticked)
+* Offer bulk pricing: "buy 10 or more, 10% off each"
+* Track stock per choice, so a sold-out color can't be ordered
+
+= Who it is for =
+
+* Personalized gift, engraving and print shops
+* Print-on-demand and custom apparel stores
+* Any WooCommerce store that needs extra product options without a monthly fee
 
 = Features =
 
@@ -37,6 +48,37 @@ StoreCanvas Lite adds extra choices to your WooCommerce products: sizes, finishe
 * **Compatible** with WooCommerce HPOS (custom order tables), the block cart and block checkout.
 * **Customer design canvas (free):** one print area on the product's main image. Customers add text (5 built-in fonts, any colour, bold) and upload PNG or JPEG images, then move, resize, rotate, layer and delete them with a mouse, a finger or the keyboard. Optional: require a design, turn photo uploads off, limit the number of layers and charge a flat design fee (added through the same server-side pricing as the options). The design preview shows in the cart, checkout, order emails and My Account; the admin order screen has download links for the preview and every original photo.
 * **Help & demo page** with a one-click demo product and a support ticket form.
+
+== External services ==
+
+StoreCanvas Lite has no license check, no telemetry, no account, and makes no outbound requests during normal use. The one exception is a support ticket you choose to send.
+
+The customer design canvas uses no outside service: its fonts are bundled with the plugin, customer photos are uploaded only to your own site, and nothing is sent to Tillpress or anyone else.
+
+**Support tickets (only when you send one):** the Help & demo page has a support form. When an administrator fills it in, ticks the consent box, and presses **Send ticket**, the plugin sends the name, reply-to email, topic, subject, message, this site's address, and (if ticked) a system report of WordPress/WooCommerce/PHP versions, theme, and active plugin names to the Tillpress support desk at `https://tillpress.com/wp-json/tp/v1/support`. Nothing is sent automatically, in the background, or on a schedule, and no passwords, keys, or customer/order data are included. Service provider: Tillpress (Alex Software Holdings LLC). Privacy policy: https://tillpress.com/privacy/ — Terms: https://tillpress.com/terms/ . "Email instead" opens the same ticket in your own email app and sends nothing from the site.
+
+== Privacy ==
+
+**Design canvas.** When a customer uses the design canvas, these files are stored on your own server, in `wp-content/uploads/sclt-designs/` (never in the Media Library and never sent anywhere else): the design preview image, every PNG/JPEG photo the customer uploads for the design, and, on the cart line and order item, the design itself (texts, font, colour and positions). Guests can use the canvas without an account.
+
+* The folder is protected: file names are long random strings, the folder blocks direct access and listing (`.htaccess` and `index.php`; on nginx add a `deny` rule for `/wp-content/uploads/sclt-designs/`), and files are only shown to shop staff or through signed links that expire (1 day in the cart, 60 days in order emails and order pages).
+* Photos uploaded for a design that was never ordered are deleted automatically after 7 days. Files of placed orders are kept with the order so you can produce it.
+* Uninstalling the plugin deletes the whole `sclt-designs` folder, including files of past orders (download what you still need first, or add `define( 'SCLT_KEEP_DESIGNS_ON_UNINSTALL', true );` to wp-config.php to keep them).
+* Suggested privacy-policy text: "If you design a product on our site, the text and images you add are stored on our website so we can produce your order. Images from designs you do not order are deleted after 7 days."
+
+**File upload fields.** Files a customer attaches to a file upload field are stored the same way, in the same protected folder, with the same rules: random names, no direct access, staff download links on the order, and deletion after 7 days when the cart never became an order.
+
+The rest of StoreCanvas Lite stores only the option choices made with an order, as part of that order.
+
+== Installation ==
+
+1. In WordPress, go to Plugins → Add New, search for "StoreCanvas Lite", then click Install and Activate. (Or upload the `storecanvas-lite` folder to `/wp-content/plugins/` and activate it on the Plugins screen.)
+2. Make sure WooCommerce 7.0 or newer is active.
+3. Optional: open Products → StoreCanvas Lite help and click **Create demo data** to see a finished example.
+4. Edit a product, open the **StoreCanvas Lite** tab in the Product data box, click **Add field**, fill in the label, type, price and choices, then click **Update**.
+5. Optional: create reusable fields under Products → **Option groups** and assign them to products or categories.
+
+The **Setup guide** in the Description tab walks through every setting with examples.
 
 = Setup guide =
 
@@ -102,38 +144,13 @@ Click **Update**. On the product page the canvas appears above Add to cart. When
 
 A paid **StoreCanvas** plugin is sold separately at https://tillpress.com/storecanvas/ for shops that need more than one print area: several product views and print areas, a clipart library, design templates, print-ready PNG/SVG/PDF files, a production desk, Printful/Printify and Fancy Product Designer import. It is a different plugin. StoreCanvas Lite, including its design canvas, is complete on its own and is never locked or time-limited.
 
-== External services ==
-
-StoreCanvas Lite has no license check, no telemetry, no account, and makes no outbound requests during normal use. The one exception is a support ticket you choose to send.
-
-The customer design canvas uses no outside service: its fonts are bundled with the plugin, customer photos are uploaded only to your own site, and nothing is sent to Tillpress or anyone else.
-
-**Support tickets (only when you send one):** the Help & demo page has a support form. When an administrator fills it in, ticks the consent box, and presses **Send ticket**, the plugin sends the name, reply-to email, topic, subject, message, this site's address, and (if ticked) a system report of WordPress/WooCommerce/PHP versions, theme, and active plugin names to the Tillpress support desk at `https://tillpress.com/wp-json/tp/v1/support`. Nothing is sent automatically, in the background, or on a schedule, and no passwords, keys, or customer/order data are included. Service provider: Tillpress (Alex Software Holdings LLC). Privacy policy: https://tillpress.com/privacy/ — Terms: https://tillpress.com/terms/ . "Email instead" opens the same ticket in your own email app and sends nothing from the site.
-
-== Privacy ==
-
-**Design canvas.** When a customer uses the design canvas, these files are stored on your own server, in `wp-content/uploads/sclt-designs/` (never in the Media Library and never sent anywhere else): the design preview image, every PNG/JPEG photo the customer uploads for the design, and, on the cart line and order item, the design itself (texts, font, colour and positions). Guests can use the canvas without an account.
-
-* The folder is protected: file names are long random strings, the folder blocks direct access and listing (`.htaccess` and `index.php`; on nginx add a `deny` rule for `/wp-content/uploads/sclt-designs/`), and files are only shown to shop staff or through signed links that expire (1 day in the cart, 60 days in order emails and order pages).
-* Photos uploaded for a design that was never ordered are deleted automatically after 7 days. Files of placed orders are kept with the order so you can produce it.
-* Uninstalling the plugin deletes the whole `sclt-designs` folder, including files of past orders (download what you still need first, or add `define( 'SCLT_KEEP_DESIGNS_ON_UNINSTALL', true );` to wp-config.php to keep them).
-* Suggested privacy-policy text: "If you design a product on our site, the text and images you add are stored on our website so we can produce your order. Images from designs you do not order are deleted after 7 days."
-
-**File upload fields.** Files a customer attaches to a file upload field are stored the same way, in the same protected folder, with the same rules: random names, no direct access, staff download links on the order, and deletion after 7 days when the cart never became an order.
-
-The rest of StoreCanvas Lite stores only the option choices made with an order, as part of that order.
-
-== Installation ==
-
-1. In WordPress, go to Plugins → Add New, search for "StoreCanvas Lite", then click Install and Activate. (Or upload the `storecanvas-lite` folder to `/wp-content/plugins/` and activate it on the Plugins screen.)
-2. Make sure WooCommerce 7.0 or newer is active.
-3. Optional: open Products → StoreCanvas Lite help and click **Create demo data** to see a finished example.
-4. Edit a product, open the **StoreCanvas Lite** tab in the Product data box, click **Add field**, fill in the label, type, price and choices, then click **Update**.
-5. Optional: create reusable fields under Products → **Option groups** and assign them to products or categories.
-
-The **Setup guide** in the Description tab walks through every setting with examples.
-
 == Frequently Asked Questions ==
+
+= Is there a free WooCommerce product designer that is not a SaaS subscription? =
+Yes. The design canvas in StoreCanvas Lite is free and runs on your own WordPress site. Designs and photos are stored on your server and come with the order. There is no monthly fee, per-order fee or outside service.
+
+= Can customers personalize products with custom text and image uploads? =
+Yes. Add a text field (with per-letter pricing for engraving) or a file upload field, or turn on the design canvas so customers place text and photos on the product image themselves.
 
 = Is there a license key, trial or "pro" lock? =
 No. Every feature on this page works without a key, a trial or an account, and nothing is locked later.
@@ -217,6 +234,9 @@ Lite's canvas has one print area on the main product image. The paid StoreCanvas
 
 
 
+
+= 1.3.3 =
+* Docs: clearer plugin name, short description and overview on WordPress.org (what it does, who it is for, how it works, demo and docs links), plus FAQ entries on a free self-hosted product designer and text/photo personalization. The step-by-step setup guide moved to the Installation tab, because WordPress.org was cutting off the end of the description. No code changes.
 = 1.3.2 =
 * Refreshed admin look, shared across Tillpress plugins: rounded cards, pill tabs and buttons, settings forms and tables as cards. Only the plugin's own screens change; no settings or data change.
 = 1.3.1 =

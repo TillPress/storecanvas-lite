@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       StoreCanvas Lite
+ * Plugin Name:       StoreCanvas Lite – Product Options, Product Designer & Personalization for WooCommerce
  * Plugin URI:        https://tillpress.com/storecanvas/
  * Description:       Free WooCommerce product options and a customer design canvas: 15 field types, conditional logic, per-choice/lookup, percent, quantity and per-character pricing, per-choice option stock, and text/image designs on one print area.
- * Version:           1.3.2
+ * Version:           1.3.3
  * Author:            Tillpress
  * Author URI:        https://tillpress.com
  * Requires at least: 6.2
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SCLT_VERSION', '1.3.2' );
+define( 'SCLT_VERSION', '1.3.3' );
 define( 'SCLT_BRAND_NAME', 'StoreCanvas Lite' );
 define( 'SCLT_PLUGIN_FILE', __FILE__ );
 define( 'SCLT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
