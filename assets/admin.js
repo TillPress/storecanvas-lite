@@ -99,7 +99,7 @@
 			FILE_TYPES.map(function (t) {
 				return '<label style="margin-right:6px;"><input type="checkbox" class="sclt-file-type" value="' + t + '"' + (chosen.indexOf(t) >= 0 ? ' checked' : '') + ' /> ' + t.toUpperCase() + '</label>';
 			}).join('') +
-			' <label>Max size (MB) <input type="number" class="sclt-file-max" min="0.1" step="0.1" placeholder="5" value="' + (f.max_mb != null ? f.max_mb : '') + '" style="width:70px" /></label>' +
+			' <label>Max size (MB) <input type="number" class="sclt-file-max" min="0.1" step="any" placeholder="5" value="' + (f.max_mb != null ? f.max_mb : '') + '" style="width:70px" /></label>' +
 			'</div>'
 		);
 	}

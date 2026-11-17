@@ -4,7 +4,7 @@ Tags: product options, product customizer, product designer, product personaliza
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.3.3
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 WC requires at least: 7.0
@@ -46,7 +46,10 @@ StoreCanvas Lite is a free WooCommerce product options and product personalizati
 * **Validation:** required fields, minimum and maximum characters, number ranges and steps, and email, colour and date formats are checked before add to cart.
 * **Orders:** each choice and its price appear as line-item details in the cart, checkout, emails and admin order screen.
 * **Compatible** with WooCommerce HPOS (custom order tables), the block cart and block checkout.
-* **Customer design canvas (free):** one print area on the product's main image. Customers add text (5 built-in fonts, any colour, bold) and upload PNG or JPEG images, then move, resize, rotate, layer and delete them with a mouse, a finger or the keyboard. Optional: require a design, turn photo uploads off, limit the number of layers and charge a flat design fee (added through the same server-side pricing as the options). The design preview shows in the cart, checkout, order emails and My Account; the admin order screen has download links for the preview and every original photo.
+* **Customer design canvas (free):** a front and (optionally) a back, each with its own product photo, print area and safe margin. Customers add text (5 built-in fonts, any colour, bold, outline), upload PNG or JPEG images and add clip-art from a small built-in set, then move, resize, rotate, layer, delete and undo with a mouse, a finger or the keyboard. The front can follow the chosen variation's photo (the shirt color). Optional: require a design, turn photo uploads or clip-art off, limit the number of layers and charge a flat design fee (added through the same server-side pricing as the options). The design preview of each side shows in the cart, checkout, order emails and My Account; the admin order screen has a download link for a print-ready PNG of each side (the print area only, transparent background), the previews and every original photo.
+* **Save design and "My designs":** customers save a design and load it again later. Logged-in customers keep up to 20 designs in their account; guests keep them in their browser.
+* **Templates:** start a product from T-shirt (front and back), Mug or Business card (3.5 x 2 in, two sides); it fills in the print areas, back side, safe margin and canvas shape.
+* **Design proof email:** from the order screen, Order actions > "Send design proof to customer" emails the customer the preview of each designed item so they can reply with changes. An order note records each send.
 * **Help & demo page** with a one-click demo product and a support ticket form.
 
 == External services ==
@@ -59,12 +62,13 @@ The customer design canvas uses no outside service: its fonts are bundled with t
 
 == Privacy ==
 
-**Design canvas.** When a customer uses the design canvas, these files are stored on your own server, in `wp-content/uploads/sclt-designs/` (never in the Media Library and never sent anywhere else): the design preview image, every PNG/JPEG photo the customer uploads for the design, and, on the cart line and order item, the design itself (texts, font, colour and positions). Guests can use the canvas without an account.
+**Design canvas.** When a customer uses the design canvas, these files are stored on your own server, in `wp-content/uploads/sclt-designs/` (never in the Media Library and never sent anywhere else): the design preview image and print-ready PNG of each side, every PNG/JPEG photo the customer uploads for the design, and, on the cart line and order item, the design itself (texts, font, colour and positions). Guests can use the canvas without an account.
 
 * The folder is protected: file names are long random strings, the folder blocks direct access and listing (`.htaccess` and `index.php`; on nginx add a `deny` rule for `/wp-content/uploads/sclt-designs/`), and files are only shown to shop staff or through signed links that expire (1 day in the cart, 60 days in order emails and order pages).
 * Photos uploaded for a design that was never ordered are deleted automatically after 7 days. Files of placed orders are kept with the order so you can produce it.
+* **Saved designs ("My designs").** A logged-in customer's saved designs are stored in their user account (user meta `_sclt_saved_designs`, up to 20) and the photos in them are kept in the protected folder until the customer deletes the design. A guest's saved designs stay in their own browser (localStorage); the photos in them are kept on your server for 90 days and then deleted.
 * Uninstalling the plugin deletes the whole `sclt-designs` folder, including files of past orders (download what you still need first, or add `define( 'SCLT_KEEP_DESIGNS_ON_UNINSTALL', true );` to wp-config.php to keep them).
-* Suggested privacy-policy text: "If you design a product on our site, the text and images you add are stored on our website so we can produce your order. Images from designs you do not order are deleted after 7 days."
+* Suggested privacy-policy text: "If you design a product on our site, the text and images you add are stored on our website so we can produce your order. Images from designs you do not order are deleted after 7 days. If you save a design, it is kept in your account until you delete it (or, without an account, in your browser, with its images kept on our website for 90 days)."
 
 **File upload fields.** Files a customer attaches to a file upload field are stored the same way, in the same protected folder, with the same rules: random names, no direct access, staff download links on the order, and deletion after 7 days when the cart never became an order.
 
@@ -121,14 +125,17 @@ A hidden field is never required and never charged. Fields can also be limited t
 
 **Step 7 (optional): Reuse fields with an option group.** Go to Products → **Option groups** → Add option group. Give it a title, paste the fields into **Fields JSON** (the easiest way is to build them on one product first; a group uses the same JSON), and choose where it applies: type product IDs in **Product IDs** and/or tick categories under **Product categories**. Every product in those categories now gets the group's fields under its own. On a product's StoreCanvas Lite tab, group fields are listed separately with a link to their group; edit them in the group, not on the product. A product field with the same ID as a group field replaces it on that product. The ticked list under "Global option groups" adds a group to one product even when it is not assigned.
 
-**Step 8 (optional): Let customers design the product.** On the product's StoreCanvas Lite tab, scroll to **Customer design canvas** and tick **Let customers design this product**. The product needs a main (featured) image: that is the mockup the customer designs on. Drag the blue box on the image (or type Left, Top, Width and Height in %) to mark where printing is possible; designs are clipped to this area. Then choose:
+**Step 8 (optional): Let customers design the product.** On the product's StoreCanvas Lite tab, scroll to **Customer design canvas** and tick **Let customers design this product**. The product's main (featured) image is the mockup the customer designs on. To start quickly, pick a template (T-shirt, Mug or Business card) under **Start from a template**. Drag the blue box on the image (or type Left, Top, Width and Height in %) to mark where printing is possible; designs are clipped to this area. The red dashed line inside is the **safe margin** (4% by default): customers are warned when part of the design crosses it. Tick **Customers can also design the back** and click **Choose back photo** to add a back side with its own print area. Then choose:
 
 * **A design is required to add to cart:** the Add to cart button asks for a design first.
 * **Allow image uploads:** customers may add their own PNG or JPEG photos (up to 5 MB each by default).
+* **Offer the built-in clip-art:** 13 simple shapes (star, heart, paw print, crown and more) in any colour.
+* **Front follows the chosen variation photo:** on a variable product, the front switches to the photo of the variation the customer picks (for example the red shirt).
+* **Canvas shape without a photo:** height divided by width, used when a side has no photo (a business card is 0.5714).
 * **Max layers:** how many texts and images one design may have.
 * **Design fee:** a flat amount added to the line when a design is added (0 for free).
 
-Click **Update**. On the product page the canvas appears above Add to cart. When the order comes in, open it in WooCommerce → Orders: the line item shows the design preview and links to download the preview PNG and each photo the customer uploaded, plus the text, font and colour used.
+Click **Update**. On the product page the canvas appears above Add to cart. When the order comes in, open it in WooCommerce → Orders: the line item shows the design preview of each side and links to download the print file (PNG, print area only, transparent), the preview PNG and each photo the customer uploaded, plus the text, font, colour and outline used. To show the customer a proof, choose **Send design proof to customer** under Order actions and click the arrow.
 
 **Step 9 (optional): Quantity discounts.** On the product's StoreCanvas Lite tab, find **Quantity discounts**. In each row, type the quantity the discount starts at (2 or more), the discount, and whether it is a percentage or an amount off each item. Example: 10, 10, % off each; then 25, 15, % off each. Empty rows are skipped. The discount comes off the whole item price, options included, and the cart shows it on the line. The product page lists the tiers in a "Buy more, pay less" table and the live price shows the saving for the quantity chosen.
 
@@ -142,7 +149,7 @@ Click **Update**. On the product page the canvas appears above Add to cart. When
 * Files customers attach with a file upload field are checked (allowed type, real content, size) and kept in the same protected folder as design files. Shop staff download them from the order screen.
 * Design files are kept in a protected folder (`wp-content/uploads/sclt-designs/`) that cannot be browsed or opened directly; they are shown through short-lived signed links. Photos from designs that were never ordered are deleted automatically after 7 days.
 
-A paid **StoreCanvas** plugin is sold separately at https://tillpress.com/storecanvas/ for shops that need more than one print area: several product views and print areas, a clipart library, design templates, print-ready PNG/SVG/PDF files, a production desk, Printful/Printify and Fancy Product Designer import. It is a different plugin. StoreCanvas Lite, including its design canvas, is complete on its own and is never locked or time-limited.
+A paid **StoreCanvas** plugin is sold separately at https://tillpress.com/storecanvas/ for print shops: print spots with their own prices, print shop pricing (methods, ink colors, stitch tiers, minimums, setup fees), a size grid with names and numbers, a 3D preview, vector production files, proof approval and a production queue, saved logos, supplier catalogs and ordering, Printavo and print on demand, and more templates. It is a different plugin. StoreCanvas Lite, including its design canvas, is complete on its own and is never locked or time-limited.
 
 == Frequently Asked Questions ==
 
@@ -216,7 +223,7 @@ Only on its own Help & demo page: one box describing the paid StoreCanvas plugin
 Lite steps aside automatically so you do not get duplicate option fields or double charges. You can then deactivate Lite.
 
 = What does the paid StoreCanvas add? =
-Lite's canvas has one print area on the main product image. The paid StoreCanvas adds several product views and print areas, clipart, templates, print-ready PNG/SVG/PDF exports, a production desk, and Printful/Printify and Fancy Product Designer import, at https://tillpress.com/storecanvas/.
+Lite's canvas has a front and a back, each with one print area, a small clip-art set, three templates and a print-ready PNG per side. The paid StoreCanvas adds priced print spots (sleeves, pockets), print shop pricing, a 3D preview, vector production files, proof approval, saved logos, supplier catalogs, Printavo and print on demand, at https://tillpress.com/storecanvas/.
 
 == Screenshots ==
 
@@ -230,6 +237,16 @@ Lite's canvas has one print area on the main product image. The paid StoreCanvas
 8. The order screen: every choice the customer made is saved under the line item.
 
 == Changelog ==
+
+= 1.4.0 =
+* New: design the back too. Each side has its own product photo, print area and side buttons on the product page; the cart, emails and order show a preview of each side.
+* New: print-ready PNG per side on the order screen (the print area only, transparent background, 1500 px on the long edge; filter `sclt_canvas_print_px`).
+* New: text outline (colour and width), a small clip-art set in any colour, undo and redo (buttons, Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y), and a safe-margin line with a warning when the design crosses it.
+* New: "My designs". Save a design and load it later: in the customer's account when logged in, in the browser for guests.
+* New: templates for a T-shirt, a mug and a business card.
+* New: basic design proof email (Order actions > Send design proof to customer). No approval links.
+* New: the front follows the chosen variation's photo.
+* New: the live price listens to the `sc:base-price`, `sc:extra-price` and `sc:qty` events (same as StoreCanvas Pro) and follows the chosen variation's price.
 
 
 
@@ -312,6 +329,9 @@ Lite's canvas has one print area on the main product image. The paid StoreCanvas
 * First public release: 15 field types, flat/percent/quantity/per-character/lookup pricing, multi-rule conditional logic, per-choice option stock, reusable option groups, live price preview.
 
 == Upgrade Notice ==
+
+= 1.4.0 =
+Back side, print-ready PNG per side, outline, clip-art, undo, safe margin, saved designs, templates and a proof email for the free designer. Existing designs and orders keep working.
 
 = 1.3.0 =
 Adds quantity discount tiers per product. Nothing changes until you add a tier.

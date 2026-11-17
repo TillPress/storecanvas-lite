@@ -92,18 +92,52 @@ class SCLT_Canvas {
 	 * @return array
 	 */
 	public static function default_settings() {
+		$area = array(
+			'x' => 25.0,
+			'y' => 20.0,
+			'w' => 50.0,
+			'h' => 50.0,
+		);
 		return array(
-			'enabled'      => false,
-			'required'     => false,
-			'allow_upload' => true,
-			'max_layers'   => 10,
-			'fee'          => 0.0,
-			'area'         => array(
-				'x' => 25.0,
-				'y' => 20.0,
-				'w' => 50.0,
-				'h' => 50.0,
+			'enabled'          => false,
+			'required'         => false,
+			'allow_upload'     => true,
+			'allow_clipart'    => true,
+			'follow_variation' => true,
+			'max_layers'       => 10,
+			'fee'              => 0.0,
+			'safe'             => 4.0,
+			'ratio'            => 1.0,
+			'area'             => $area,
+			'back'             => array(
+				'enabled'  => false,
+				'image_id' => 0,
+				'area'     => $area,
 			),
+		);
+	}
+
+	/**
+	 * Clamp a print area (percent of the side's photo) so it stays inside the photo. Pure.
+	 *
+	 * @param mixed $area     Raw area.
+	 * @param array $fallback Default area.
+	 * @return array
+	 */
+	public static function sanitize_area( $area, $fallback ) {
+		$area = is_array( $area ) ? $area : array();
+		$num  = static function ( $v, $def ) {
+			return is_numeric( $v ) ? (float) $v : (float) $def;
+		};
+		$x = max( 0.0, min( 95.0, $num( $area['x'] ?? null, $fallback['x'] ) ) );
+		$y = max( 0.0, min( 95.0, $num( $area['y'] ?? null, $fallback['y'] ) ) );
+		$w = max( 5.0, min( 100.0 - $x, $num( $area['w'] ?? null, $fallback['w'] ) ) );
+		$h = max( 5.0, min( 100.0 - $y, $num( $area['h'] ?? null, $fallback['h'] ) ) );
+		return array(
+			'x' => round( $x, 2 ),
+			'y' => round( $y, 2 ),
+			'w' => round( $w, 2 ),
+			'h' => round( $h, 2 ),
 		);
 	}
 
@@ -114,31 +148,181 @@ class SCLT_Canvas {
 	 * @return array
 	 */
 	public static function sanitize_settings( $raw ) {
-		$d   = self::default_settings();
-		$raw = is_array( $raw ) ? $raw : array();
-		$out = array(
-			'enabled'      => ! empty( $raw['enabled'] ),
-			'required'     => ! empty( $raw['required'] ),
-			'allow_upload' => array_key_exists( 'allow_upload', $raw ) ? ! empty( $raw['allow_upload'] ) : $d['allow_upload'],
-			'max_layers'   => isset( $raw['max_layers'] ) && is_numeric( $raw['max_layers'] ) ? max( 1, min( 30, (int) $raw['max_layers'] ) ) : $d['max_layers'],
-			'fee'          => isset( $raw['fee'] ) && is_numeric( $raw['fee'] ) ? max( 0.0, round( (float) $raw['fee'], 4 ) ) : 0.0,
-		);
-		$area = isset( $raw['area'] ) && is_array( $raw['area'] ) ? $raw['area'] : array();
-		$num  = static function ( $v, $fallback ) {
-			return is_numeric( $v ) ? (float) $v : (float) $fallback;
+		$d    = self::default_settings();
+		$raw  = is_array( $raw ) ? $raw : array();
+		$flag = static function ( $key ) use ( $raw, $d ) {
+			return array_key_exists( $key, $raw ) ? ! empty( $raw[ $key ] ) : $d[ $key ];
 		};
-		$x = max( 0.0, min( 95.0, $num( $area['x'] ?? null, $d['area']['x'] ) ) );
-		$y = max( 0.0, min( 95.0, $num( $area['y'] ?? null, $d['area']['y'] ) ) );
-		$w = max( 5.0, min( 100.0 - $x, $num( $area['w'] ?? null, $d['area']['w'] ) ) );
-		$h = max( 5.0, min( 100.0 - $y, $num( $area['h'] ?? null, $d['area']['h'] ) ) );
+		$out  = array(
+			'enabled'          => ! empty( $raw['enabled'] ),
+			'required'         => ! empty( $raw['required'] ),
+			'allow_upload'     => $flag( 'allow_upload' ),
+			'allow_clipart'    => $flag( 'allow_clipart' ),
+			'follow_variation' => $flag( 'follow_variation' ),
+			'max_layers'       => isset( $raw['max_layers'] ) && is_numeric( $raw['max_layers'] ) ? max( 1, min( 30, (int) $raw['max_layers'] ) ) : $d['max_layers'],
+			'fee'              => isset( $raw['fee'] ) && is_numeric( $raw['fee'] ) ? max( 0.0, round( (float) $raw['fee'], 4 ) ) : 0.0,
+			'safe'             => isset( $raw['safe'] ) && is_numeric( $raw['safe'] ) ? round( max( 0.0, min( 20.0, (float) $raw['safe'] ) ), 2 ) : $d['safe'],
+			'ratio'            => isset( $raw['ratio'] ) && is_numeric( $raw['ratio'] ) && (float) $raw['ratio'] > 0 ? round( max( 0.3, min( 2.0, (float) $raw['ratio'] ) ), 4 ) : $d['ratio'],
+		);
 
-		$out['area'] = array(
-			'x' => round( $x, 2 ),
-			'y' => round( $y, 2 ),
-			'w' => round( $w, 2 ),
-			'h' => round( $h, 2 ),
+		$out['area'] = self::sanitize_area( $raw['area'] ?? null, $d['area'] );
+		$back        = isset( $raw['back'] ) && is_array( $raw['back'] ) ? $raw['back'] : array();
+		$out['back'] = array(
+			'enabled'  => ! empty( $back['enabled'] ),
+			'image_id' => isset( $back['image_id'] ) && is_numeric( $back['image_id'] ) ? max( 0, (int) $back['image_id'] ) : 0,
+			'area'     => self::sanitize_area( $back['area'] ?? null, $out['area'] ),
 		);
 		return $out;
+	}
+
+	/**
+	 * Sides the customer can design on.
+	 *
+	 * @param array $settings Sanitized settings.
+	 * @return string[] front, plus back when it is on.
+	 */
+	public static function sides( $settings ) {
+		return ! empty( $settings['back']['enabled'] ) ? array( 'front', 'back' ) : array( 'front' );
+	}
+
+	/**
+	 * Side labels.
+	 *
+	 * @return array side => label.
+	 */
+	public static function side_labels() {
+		return array(
+			'front' => __( 'Front', 'storecanvas-lite' ),
+			'back'  => __( 'Back', 'storecanvas-lite' ),
+		);
+	}
+
+	/**
+	 * Small built-in clip-art set: SVG path data in a 100 x 100 box, filled with one
+	 * color the customer picks. Nothing is loaded from outside the plugin.
+	 *
+	 * @return array key => [ label, d ].
+	 */
+	public static function clipart() {
+		return array(
+			'star'      => array(
+				'label' => __( 'Star', 'storecanvas-lite' ),
+				'd'     => 'M50 6 L61.2 37.6 L94.7 38.5 L68.1 58.9 L77.6 91 L50 72 L22.4 91 L31.9 58.9 L5.3 38.5 L38.8 37.6 Z',
+			),
+			'heart'     => array(
+				'label' => __( 'Heart', 'storecanvas-lite' ),
+				'd'     => 'M50 90 C20 68 4 50 4 31 C4 16 16 7 28 7 C38 7 46 13 50 21 C54 13 62 7 72 7 C84 7 96 16 96 31 C96 50 80 68 50 90 Z',
+			),
+			'circle'    => array(
+				'label' => __( 'Circle', 'storecanvas-lite' ),
+				'd'     => 'M4 50 A46 46 0 1 0 96 50 A46 46 0 1 0 4 50 Z',
+			),
+			'diamond'   => array(
+				'label' => __( 'Diamond', 'storecanvas-lite' ),
+				'd'     => 'M50 2 L90 50 L50 98 L10 50 Z',
+			),
+			'hexagon'   => array(
+				'label' => __( 'Hexagon', 'storecanvas-lite' ),
+				'd'     => 'M96 50 L73 89.8 L27 89.8 L4 50 L27 10.2 L73 10.2 Z',
+			),
+			'lightning' => array(
+				'label' => __( 'Lightning', 'storecanvas-lite' ),
+				'd'     => 'M58 2 L18 56 L46 56 L38 98 L82 40 L54 40 Z',
+			),
+			'check'     => array(
+				'label' => __( 'Check mark', 'storecanvas-lite' ),
+				'd'     => 'M6 52 L20 38 L40 58 L80 16 L94 30 L40 86 Z',
+			),
+			'arrow'     => array(
+				'label' => __( 'Arrow', 'storecanvas-lite' ),
+				'd'     => 'M4 38 L58 38 L58 14 L96 50 L58 86 L58 62 L4 62 Z',
+			),
+			'crown'     => array(
+				'label' => __( 'Crown', 'storecanvas-lite' ),
+				'd'     => 'M10 82 L4 26 L30 48 L50 14 L70 48 L96 26 L90 82 Z',
+			),
+			'speech'    => array(
+				'label' => __( 'Speech bubble', 'storecanvas-lite' ),
+				'd'     => 'M12 10 L88 10 Q96 10 96 18 L96 60 Q96 68 88 68 L42 68 L20 90 L24 68 L12 68 Q4 68 4 60 L4 18 Q4 10 12 10 Z',
+			),
+			'paw'       => array(
+				'label' => __( 'Paw print', 'storecanvas-lite' ),
+				'd'     => 'M50 50 C68 50 82 70 78 82 C74 94 60 88 50 88 C40 88 26 94 22 82 C18 70 32 50 50 50 Z M10 36 A10 13 0 1 0 30 36 A10 13 0 1 0 10 36 Z M30 18 A10 13 0 1 0 50 18 A10 13 0 1 0 30 18 Z M50 18 A10 13 0 1 0 70 18 A10 13 0 1 0 50 18 Z M70 36 A10 13 0 1 0 90 36 A10 13 0 1 0 70 36 Z',
+			),
+			'note'      => array(
+				'label' => __( 'Music note', 'storecanvas-lite' ),
+				'd'     => 'M30 76 A16 12 0 1 0 62 76 A16 12 0 1 0 30 76 Z M54 76 L54 8 L86 20 L86 36 L62 27 L62 76 Z',
+			),
+			'leaf'      => array(
+				'label' => __( 'Leaf', 'storecanvas-lite' ),
+				'd'     => 'M10 92 C10 42 40 10 92 8 C90 60 60 92 10 92 Z',
+			),
+		);
+	}
+
+	/**
+	 * Starting points for the product settings: print area, back side, safe margin and
+	 * the canvas shape used when the product has no photo.
+	 *
+	 * @return array key => settings subset with a label.
+	 */
+	public static function templates() {
+		return array(
+			'tshirt' => array(
+				'label' => __( 'T-shirt (front and back)', 'storecanvas-lite' ),
+				'area'  => array(
+					'x' => 31,
+					'y' => 24,
+					'w' => 38,
+					'h' => 46,
+				),
+				'back'  => true,
+				'barea' => array(
+					'x' => 31,
+					'y' => 20,
+					'w' => 38,
+					'h' => 50,
+				),
+				'safe'  => 4,
+				'ratio' => 1,
+			),
+			'mug'    => array(
+				'label' => __( 'Mug (one wrap area)', 'storecanvas-lite' ),
+				'area'  => array(
+					'x' => 14,
+					'y' => 24,
+					'w' => 56,
+					'h' => 50,
+				),
+				'back'  => false,
+				'barea' => array(
+					'x' => 14,
+					'y' => 24,
+					'w' => 56,
+					'h' => 50,
+				),
+				'safe'  => 5,
+				'ratio' => 0.75,
+			),
+			'card'   => array(
+				'label' => __( 'Business card (3.5 x 2 in, two sides)', 'storecanvas-lite' ),
+				'area'  => array(
+					'x' => 0,
+					'y' => 0,
+					'w' => 100,
+					'h' => 100,
+				),
+				'back'  => true,
+				'barea' => array(
+					'x' => 0,
+					'y' => 0,
+					'w' => 100,
+					'h' => 100,
+				),
+				'safe'  => 6,
+				'ratio' => 0.5714,
+			),
+		);
 	}
 
 	/**
@@ -220,6 +404,24 @@ class SCLT_Canvas {
 	 */
 	public static function max_preview_bytes() {
 		return max( 1024, (int) apply_filters( 'sclt_canvas_max_preview_bytes', 3 * 1024 * 1024 ) );
+	}
+
+	/**
+	 * Largest print-ready PNG per side, in decoded bytes.
+	 *
+	 * @return int
+	 */
+	public static function max_print_bytes() {
+		return max( 1024, (int) apply_filters( 'sclt_canvas_max_print_bytes', 8 * 1024 * 1024 ) );
+	}
+
+	/**
+	 * Long edge of the print-ready PNG, in pixels (300 to 4000).
+	 *
+	 * @return int
+	 */
+	public static function print_px() {
+		return max( 300, min( 4000, (int) apply_filters( 'sclt_canvas_print_px', 1500 ) ) );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -368,6 +570,11 @@ class SCLT_Canvas {
 			return sprintf( __( 'A design can have at most %d layers.', 'storecanvas-lite' ), (int) $settings['max_layers'] );
 		}
 		$fonts  = self::fonts();
+		$clips  = self::clipart();
+		$sides  = self::sides( $settings );
+		$hex    = static function ( $v, $def ) {
+			return is_string( $v ) && preg_match( '/^#[0-9a-fA-F]{6}$/D', $v ) ? strtolower( $v ) : $def;
+		};
 		$layers = array();
 		$files  = array();
 		foreach ( $decoded['layers'] as $raw ) {
@@ -381,6 +588,7 @@ class SCLT_Canvas {
 				'y'    => self::num( $raw['y'] ?? 0.5, -0.5, 1.5, 0.5 ),
 				's'    => self::num( $raw['s'] ?? 20, 1, 300, 20 ),
 				'rot'  => self::num( $raw['rot'] ?? 0, -360, 360, 0 ),
+				'side' => isset( $raw['side'] ) && is_string( $raw['side'] ) && in_array( $raw['side'], $sides, true ) ? $raw['side'] : 'front',
 			);
 			if ( 'text' === $type ) {
 				$text = isset( $raw['text'] ) && is_scalar( $raw['text'] ) ? sanitize_text_field( (string) $raw['text'] ) : '';
@@ -389,12 +597,25 @@ class SCLT_Canvas {
 					continue;
 				}
 				$font  = isset( $raw['font'] ) && is_string( $raw['font'] ) && isset( $fonts[ $raw['font'] ] ) ? $raw['font'] : 'sans';
-				$color = isset( $raw['color'] ) && is_string( $raw['color'] ) && preg_match( '/^#[0-9a-fA-F]{6}$/D', $raw['color'] ) ? strtolower( $raw['color'] ) : '#000000';
+				$color = $hex( $raw['color'] ?? '', '#000000' );
+				$ow    = self::num( $raw['ow'] ?? 0, 0, 30, 0 );
 
-				$layer['text']  = $text;
-				$layer['font']  = $font;
-				$layer['color'] = $color;
-				$layer['bold']  = ! empty( $raw['bold'] );
+				$layer['text']    = $text;
+				$layer['font']    = $font;
+				$layer['color']   = $color;
+				$layer['bold']    = ! empty( $raw['bold'] );
+				$layer['outline'] = $ow > 0 ? $hex( $raw['outline'] ?? '', '#ffffff' ) : '';
+				$layer['ow']      = $ow > 0 ? $ow : 0.0;
+			} elseif ( 'clipart' === $type ) {
+				if ( empty( $settings['allow_clipart'] ) ) {
+					return __( 'Clip-art is not available for this product.', 'storecanvas-lite' );
+				}
+				$art = $raw['art'] ?? '';
+				if ( ! is_string( $art ) || ! isset( $clips[ $art ] ) ) {
+					continue;
+				}
+				$layer['art']   = $art;
+				$layer['color'] = $hex( $raw['color'] ?? '', '#000000' );
 			} elseif ( 'image' === $type ) {
 				if ( empty( $settings['allow_upload'] ) ) {
 					return __( 'Image uploads are not available for this product.', 'storecanvas-lite' );
@@ -437,7 +658,45 @@ class SCLT_Canvas {
 				return false;
 			}
 		}
+		foreach ( array( 'previews', 'prints' ) as $key ) {
+			if ( ! isset( $design[ $key ] ) ) {
+				continue;
+			}
+			if ( ! is_array( $design[ $key ] ) ) {
+				return false;
+			}
+			foreach ( $design[ $key ] as $side => $f ) {
+				if ( ! in_array( $side, array( 'front', 'back' ), true ) || ! self::is_valid_file_name( $f ) ) {
+					return false;
+				}
+			}
+		}
 		return true;
+	}
+
+	/**
+	 * Preview (or print) file per side of a stored design. Designs saved before 1.4.0
+	 * have one preview, which is the front.
+	 *
+	 * @param array  $design Stored design.
+	 * @param string $key    previews|prints.
+	 * @return array side => file name.
+	 */
+	public static function side_files( $design, $key = 'previews' ) {
+		if ( ! is_array( $design ) ) {
+			return array();
+		}
+		$list = isset( $design[ $key ] ) && is_array( $design[ $key ] ) ? $design[ $key ] : array();
+		if ( 'previews' === $key && ! $list && self::is_valid_file_name( $design['preview'] ?? '' ) ) {
+			$list = array( 'front' => $design['preview'] );
+		}
+		$out = array();
+		foreach ( array( 'front', 'back' ) as $side ) {
+			if ( isset( $list[ $side ] ) && self::is_valid_file_name( $list[ $side ] ) ) {
+				$out[ $side ] = $list[ $side ];
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -453,6 +712,9 @@ class SCLT_Canvas {
 		$out = array();
 		if ( self::is_valid_file_name( $design['preview'] ?? '' ) ) {
 			$out[] = $design['preview'];
+		}
+		foreach ( array_merge( array_values( self::side_files( $design, 'previews' ) ), array_values( self::side_files( $design, 'prints' ) ) ) as $f ) {
+			$out[] = $f;
 		}
 		foreach ( (array) ( $design['files'] ?? array() ) as $f ) {
 			if ( self::is_valid_file_name( $f ) ) {
@@ -593,7 +855,7 @@ class SCLT_Canvas {
 			$key = bin2hex( random_bytes( 10 ) );
 			update_option( self::OPT_DIR, $key, false );
 		}
-		$state = 'ordered' === $state ? 'ordered' : 'pending';
+		$state = in_array( $state, array( 'ordered', 'saved', 'kept' ), true ) ? $state : 'pending';
 		$dir   = $root . '/' . $key . '/' . $state;
 		if ( $create && ! is_dir( $dir ) ) {
 			wp_mkdir_p( $dir );
@@ -635,7 +897,21 @@ class SCLT_Canvas {
 		if ( ! self::is_stored_file_name( $name ) ) {
 			return '';
 		}
-		foreach ( array( 'ordered', 'pending' ) as $state ) {
+		return self::locate_in( $name, array( 'ordered', 'saved', 'kept', 'pending' ) );
+	}
+
+	/**
+	 * Absolute path of a stored file in one of the given folders, or ''.
+	 *
+	 * @param string   $name   File name.
+	 * @param string[] $states Folders to look in (pending, ordered, saved, kept).
+	 * @return string
+	 */
+	public static function locate_in( $name, $states ) {
+		if ( ! self::is_stored_file_name( $name ) ) {
+			return '';
+		}
+		foreach ( (array) $states as $state ) {
 			$dir = self::storage_dir( $state, false );
 			if ( '' !== $dir && is_file( $dir . '/' . $name ) ) {
 				return $dir . '/' . $name;
@@ -710,14 +986,54 @@ class SCLT_Canvas {
 		}
 		$ordered = self::storage_dir( 'ordered' );
 		foreach ( (array) $names as $name ) {
-			if ( ! self::is_stored_file_name( $name ) ) {
+			if ( ! self::is_stored_file_name( $name ) || is_file( $ordered . '/' . $name ) ) {
 				continue;
 			}
 			$src = $pending . '/' . $name;
-			if ( is_file( $src ) && ! is_file( $ordered . '/' . $name ) ) {
+			if ( is_file( $src ) ) {
 				rename( $src, $ordered . '/' . $name ); // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- move within the plugin's own uploads folder.
+				continue;
+			}
+			// A saved design's image: the order gets its own copy, so deleting the saved
+			// design later never takes the order's file with it.
+			$src = self::locate( $name );
+			if ( '' !== $src ) {
+				copy( $src, $ordered . '/' . $name );
 			}
 		}
+	}
+
+	/**
+	 * Copy stored files into the saved (customer accounts) or kept (guest) folder, so
+	 * they outlive the pending cleanup. A file already there gets a fresh date.
+	 *
+	 * @param string[] $names Stored file names.
+	 * @param string   $state saved|kept.
+	 * @return bool True when every file is there afterwards.
+	 */
+	public static function keep_files( $names, $state ) {
+		$state = 'saved' === $state ? 'saved' : 'kept';
+		$dir   = self::storage_dir( $state );
+		if ( '' === $dir ) {
+			return false;
+		}
+		$ok = true;
+		foreach ( (array) $names as $name ) {
+			if ( ! self::is_valid_file_name( $name ) ) {
+				$ok = false;
+				continue;
+			}
+			$dest = $dir . '/' . $name;
+			if ( is_file( $dest ) ) {
+				touch( $dest );
+				continue;
+			}
+			$src = self::locate( $name );
+			if ( '' === $src || ! copy( $src, $dest ) ) {
+				$ok = false;
+			}
+		}
+		return $ok;
 	}
 
 	/**
@@ -727,21 +1043,28 @@ class SCLT_Canvas {
 	 * @return int Files removed.
 	 */
 	public static function cleanup( $now = 0 ) {
-		$now  = $now ? (int) $now : time();
-		$days = max( 1, (int) apply_filters( 'sclt_canvas_pending_days', 7 ) );
-		$dir  = self::storage_dir( 'pending', false );
-		if ( '' === $dir || ! is_dir( $dir ) ) {
-			return 0;
-		}
+		$now     = $now ? (int) $now : time();
 		$removed = 0;
-		foreach ( (array) scandir( $dir ) as $name ) {
-			if ( ! self::is_stored_file_name( $name ) ) {
+		$windows = array(
+			// Uploads and previews in carts that were never ordered.
+			'pending' => max( 1, (int) apply_filters( 'sclt_canvas_pending_days', 7 ) ),
+			// Images of designs that guests saved in their browser.
+			'kept'    => max( 1, (int) apply_filters( 'sclt_canvas_kept_days', 90 ) ),
+		);
+		foreach ( $windows as $state => $days ) {
+			$dir = self::storage_dir( $state, false );
+			if ( '' === $dir || ! is_dir( $dir ) ) {
 				continue;
 			}
-			$path = $dir . '/' . $name;
-			if ( is_file( $path ) && filemtime( $path ) < $now - $days * DAY_IN_SECONDS ) {
-				wp_delete_file( $path );
-				++$removed;
+			foreach ( (array) scandir( $dir ) as $name ) {
+				if ( ! self::is_stored_file_name( $name ) ) {
+					continue;
+				}
+				$path = $dir . '/' . $name;
+				if ( is_file( $path ) && filemtime( $path ) < $now - $days * DAY_IN_SECONDS ) {
+					wp_delete_file( $path );
+					++$removed;
+				}
 			}
 		}
 		return $removed;
@@ -777,6 +1100,9 @@ class SCLT_Canvas {
 		if ( ! in_array( $hook, array( 'post.php', 'post-new.php' ), true ) || ! $post || 'product' !== get_post_type( $post ) ) {
 			return;
 		}
+		if ( function_exists( 'wp_enqueue_media' ) ) {
+			wp_enqueue_media();
+		}
 		wp_enqueue_script( 'sclt-admin-canvas', SCLT_PLUGIN_URL . 'assets/admin-canvas.js', array(), SCLT_VERSION, true );
 	}
 
@@ -798,23 +1124,53 @@ class SCLT_Canvas {
 				'css'   => $f['css'],
 			);
 		}
+		$clips = array();
+		if ( $s['allow_clipart'] ) {
+			foreach ( self::clipart() as $key => $c ) {
+				$clips[] = array(
+					'key'   => $key,
+					'label' => $c['label'],
+					'd'     => $c['d'],
+				);
+			}
+		}
+		$back = null;
+		if ( $s['back']['enabled'] ) {
+			$back_id = (int) $s['back']['image_id'];
+			$back    = array(
+				'bg'   => $back_id ? (string) wp_get_attachment_image_url( $back_id, 'large' ) : '',
+				'area' => $s['back']['area'],
+			);
+		}
+		$labels = self::side_labels();
 		return array(
-			'productId'   => (int) $product->get_id(),
-			'bg'          => $bg,
-			'area'        => $s['area'],
-			'allowUpload' => (bool) $s['allow_upload'],
-			'maxLayers'   => (int) $s['max_layers'],
-			'required'    => (bool) $s['required'],
-			'maxBytes'    => self::max_upload_bytes(),
-			'ajax'        => admin_url( 'admin-ajax.php' ),
-			'action'      => self::UPLOAD_ACTION,
-			'nonce'       => wp_create_nonce( self::NONCE ),
-			'fonts'       => $fonts,
-			'i18n'        => array(
+			'productId'       => (int) $product->get_id(),
+			'bg'              => $bg,
+			'area'            => $s['area'],
+			'back'            => $back,
+			'safe'            => (float) $s['safe'],
+			'ratio'           => (float) $s['ratio'],
+			'followVariation' => (bool) $s['follow_variation'],
+			'allowUpload'     => (bool) $s['allow_upload'],
+			'clipart'         => $clips,
+			'maxLayers'       => (int) $s['max_layers'],
+			'required'        => (bool) $s['required'],
+			'maxBytes'        => self::max_upload_bytes(),
+			'printPx'         => self::print_px(),
+			'ajax'            => admin_url( 'admin-ajax.php' ),
+			'action'          => self::UPLOAD_ACTION,
+			'designsAction'   => class_exists( 'SCLT_Saved_Designs' ) ? SCLT_Saved_Designs::ACTION : '',
+			'loggedIn'        => function_exists( 'is_user_logged_in' ) && is_user_logged_in(),
+			'nonce'           => wp_create_nonce( self::NONCE ),
+			'fonts'           => $fonts,
+			'i18n'            => array(
 				'newText'     => __( 'Your text', 'storecanvas-lite' ),
 				'noLayers'    => __( 'No layers yet', 'storecanvas-lite' ),
 				'textLayer'   => __( 'Text', 'storecanvas-lite' ),
 				'imageLayer'  => __( 'Image', 'storecanvas-lite' ),
+				'clipLayer'   => __( 'Clip-art', 'storecanvas-lite' ),
+				'front'       => $labels['front'],
+				'back'        => $labels['back'],
 				'maxLayers'   => __( 'This design already has the maximum number of layers.', 'storecanvas-lite' ),
 				'badType'     => __( 'Please choose a PNG or JPEG image.', 'storecanvas-lite' ),
 				'tooBig'      => self::too_big_message(),
@@ -824,7 +1180,20 @@ class SCLT_Canvas {
 				'required'    => __( 'Please add your design before adding this product to the cart.', 'storecanvas-lite' ),
 				'selected'    => __( 'Selected:', 'storecanvas-lite' ),
 				'deleted'     => __( 'Layer deleted.', 'storecanvas-lite' ),
-				'canvasLabel' => __( 'Design preview. Select a layer, then use the arrow keys to move it, + and - to resize, [ and ] to rotate, Delete to remove.', 'storecanvas-lite' ),
+				'undone'      => __( 'Undone.', 'storecanvas-lite' ),
+				'redone'      => __( 'Redone.', 'storecanvas-lite' ),
+				'outsideSafe' => __( 'Part of your design is outside the safe area (red dashed line) and may be cut off when printed.', 'storecanvas-lite' ),
+				'saved'       => __( 'Design saved.', 'storecanvas-lite' ),
+				'saveFail'    => __( 'The design could not be saved. Please try again.', 'storecanvas-lite' ),
+				'nothingSave' => __( 'Add something to your design before saving it.', 'storecanvas-lite' ),
+				'loaded'      => __( 'Design loaded.', 'storecanvas-lite' ),
+				'loadMissing' => __( 'Some images in this design have expired and were left out.', 'storecanvas-lite' ),
+				'noSaved'     => __( 'No saved designs yet.', 'storecanvas-lite' ),
+				'load'        => __( 'Load', 'storecanvas-lite' ),
+				'remove'      => __( 'Delete', 'storecanvas-lite' ),
+				'untitled'    => __( 'My design', 'storecanvas-lite' ),
+				'browserOnly' => __( 'Saved in this browser only. Log in to keep designs in your account.', 'storecanvas-lite' ),
+				'canvasLabel' => __( 'Design preview. Select a layer, then use the arrow keys to move it, + and - to resize, [ and ] to rotate, Delete to remove, Ctrl+Z to undo.', 'storecanvas-lite' ),
 			),
 		);
 	}
@@ -837,6 +1206,7 @@ class SCLT_Canvas {
 		$s      = self::get_settings( $product->get_id() );
 		$config = self::front_config( $product );
 		$uid    = 'sclt-canvas-' . (int) $product->get_id();
+		$labels = self::side_labels();
 		?>
 		<div class="sclt-canvas" id="<?php echo esc_attr( $uid ); ?>" data-sclt-canvas="<?php echo esc_attr( wp_json_encode( $config ) ); ?>">
 			<p class="sclt-canvas__title"><strong><?php esc_html_e( 'Design it', 'storecanvas-lite' ); ?></strong>
@@ -852,9 +1222,17 @@ class SCLT_Canvas {
 				</span>
 			<?php endif; ?>
 			</p>
+			<?php if ( $s['back']['enabled'] ) : ?>
+				<div class="sclt-canvas__sides" role="group" aria-label="<?php esc_attr_e( 'Side', 'storecanvas-lite' ); ?>">
+					<?php foreach ( self::sides( $s ) as $side ) : ?>
+						<button type="button" class="button sclt-canvas__side<?php echo 'front' === $side ? ' is-active' : ''; ?>" data-sclt-side="<?php echo esc_attr( $side ); ?>" aria-pressed="<?php echo 'front' === $side ? 'true' : 'false'; ?>"><?php echo esc_html( $labels[ $side ] ); ?></button>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
 			<div class="sclt-canvas__stage-wrap">
 				<canvas class="sclt-canvas__stage" width="800" height="800" tabindex="0" role="application" aria-roledescription="<?php esc_attr_e( 'design canvas', 'storecanvas-lite' ); ?>" aria-label="<?php echo esc_attr( $config['i18n']['canvasLabel'] ); ?>"></canvas>
 			</div>
+			<p class="sclt-canvas__safe-note" aria-live="polite"></p>
 			<div class="sclt-canvas__tools">
 				<div class="sclt-canvas__row">
 					<label class="sclt-canvas__grow"><span><?php esc_html_e( 'Text', 'storecanvas-lite' ); ?></span>
@@ -869,6 +1247,14 @@ class SCLT_Canvas {
 						</label>
 					</div>
 				<?php endif; ?>
+				<?php if ( $s['allow_clipart'] ) : ?>
+					<div class="sclt-canvas__row sclt-canvas__clips" role="group" aria-label="<?php esc_attr_e( 'Add clip-art', 'storecanvas-lite' ); ?>">
+						<span class="sclt-canvas__clips-label"><?php esc_html_e( 'Clip-art', 'storecanvas-lite' ); ?></span>
+						<?php foreach ( self::clipart() as $key => $clip ) : ?>
+							<button type="button" class="button sclt-canvas__clip" data-sclt-act="add-clip" data-sclt-art="<?php echo esc_attr( $key ); ?>" title="<?php echo esc_attr( $clip['label'] ); ?>" aria-label="<?php echo esc_attr( $clip['label'] ); ?>"><svg viewBox="0 0 100 100" width="22" height="22" aria-hidden="true" focusable="false"><path d="<?php echo esc_attr( $clip['d'] ); ?>" fill="currentColor" /></svg></button>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
 				<div class="sclt-canvas__row">
 					<label><span><?php esc_html_e( 'Layer', 'storecanvas-lite' ); ?></span>
 						<select class="sclt-canvas__layers"></select>
@@ -880,10 +1266,18 @@ class SCLT_Canvas {
 							<?php endforeach; ?>
 						</select>
 					</label>
-					<label class="sclt-canvas__text-only"><span><?php esc_html_e( 'Color', 'storecanvas-lite' ); ?></span>
+					<label class="sclt-canvas__fill"><span><?php esc_html_e( 'Color', 'storecanvas-lite' ); ?></span>
 						<input type="color" class="sclt-canvas__color" value="#000000" />
 					</label>
 					<label class="sclt-canvas__text-only sclt-canvas__check"><input type="checkbox" class="sclt-canvas__bold" /> <span><?php esc_html_e( 'Bold', 'storecanvas-lite' ); ?></span></label>
+				</div>
+				<div class="sclt-canvas__row sclt-canvas__text-only">
+					<label><span><?php esc_html_e( 'Outline', 'storecanvas-lite' ); ?></span>
+						<input type="color" class="sclt-canvas__outline" value="#ffffff" />
+					</label>
+					<label class="sclt-canvas__grow"><span><?php esc_html_e( 'Outline width', 'storecanvas-lite' ); ?></span>
+						<input type="range" class="sclt-canvas__ow" min="0" max="20" step="1" value="0" />
+					</label>
 				</div>
 				<div class="sclt-canvas__row">
 					<label class="sclt-canvas__grow"><span><?php esc_html_e( 'Size', 'storecanvas-lite' ); ?></span>
@@ -894,14 +1288,34 @@ class SCLT_Canvas {
 					</label>
 				</div>
 				<div class="sclt-canvas__row">
+					<button type="button" class="button sclt-canvas__btn" data-sclt-act="undo" disabled><?php esc_html_e( 'Undo', 'storecanvas-lite' ); ?></button>
+					<button type="button" class="button sclt-canvas__btn" data-sclt-act="redo" disabled><?php esc_html_e( 'Redo', 'storecanvas-lite' ); ?></button>
 					<button type="button" class="button sclt-canvas__btn" data-sclt-act="forward"><?php esc_html_e( 'Bring forward', 'storecanvas-lite' ); ?></button>
 					<button type="button" class="button sclt-canvas__btn" data-sclt-act="backward"><?php esc_html_e( 'Send backward', 'storecanvas-lite' ); ?></button>
 					<button type="button" class="button sclt-canvas__btn" data-sclt-act="delete"><?php esc_html_e( 'Delete layer', 'storecanvas-lite' ); ?></button>
 				</div>
 				<p class="sclt-canvas__msg" role="status" aria-live="polite"></p>
+				<?php if ( class_exists( 'SCLT_Saved_Designs' ) ) : ?>
+					<details class="sclt-canvas__saved">
+						<summary><?php esc_html_e( 'My designs', 'storecanvas-lite' ); ?></summary>
+						<div class="sclt-canvas__row">
+							<label class="sclt-canvas__grow"><span><?php esc_html_e( 'Design name', 'storecanvas-lite' ); ?></span>
+								<input type="text" class="sclt-canvas__save-name" maxlength="60" />
+							</label>
+							<button type="button" class="button sclt-canvas__btn" data-sclt-act="save"><?php esc_html_e( 'Save design', 'storecanvas-lite' ); ?></button>
+						</div>
+						<ul class="sclt-canvas__saved-list"></ul>
+						<?php if ( ! is_user_logged_in() ) : ?>
+							<p class="sclt-canvas__saved-note"><?php echo esc_html( $config['i18n']['browserOnly'] ); ?></p>
+						<?php endif; ?>
+					</details>
+				<?php endif; ?>
 			</div>
 			<input type="hidden" name="sclt_design" class="sclt-canvas__json" value="" />
 			<input type="hidden" name="sclt_design_preview" class="sclt-canvas__preview" value="" />
+			<input type="hidden" name="sclt_design_preview_back" class="sclt-canvas__preview-back" value="" />
+			<input type="hidden" name="sclt_design_print" class="sclt-canvas__print" value="" />
+			<input type="hidden" name="sclt_design_print_back" class="sclt-canvas__print-back" value="" />
 			<input type="hidden" name="sclt_canvas_nonce" value="<?php echo esc_attr( $config['nonce'] ); ?>" />
 		</div>
 		<?php
@@ -940,18 +1354,26 @@ class SCLT_Canvas {
 	/**
 	 * Per-IP throttle for the unauthenticated upload endpoint and for stored previews.
 	 *
-	 * @param string $bucket up (image uploads) or design (previews stored on add to cart).
+	 * @param string $bucket up (image uploads), save (saved designs) or design (previews stored on add to cart).
 	 * @return bool
 	 */
 	public static function upload_rate_ok( $bucket = 'up' ) {
-		$max = 'up' === $bucket
-			? (int) apply_filters( 'sclt_canvas_uploads_per_hour', 30 )
-			: (int) apply_filters( 'sclt_canvas_designs_per_hour', 60 );
+		if ( 'save' === $bucket ) {
+			$max = (int) apply_filters( 'sclt_canvas_saves_per_hour', 40 );
+		} elseif ( 'up' === $bucket ) {
+			$max = (int) apply_filters( 'sclt_canvas_uploads_per_hour', 30 );
+		} else {
+			$max = (int) apply_filters( 'sclt_canvas_designs_per_hour', 60 );
+		}
 		if ( $max <= 0 ) {
 			return true;
 		}
+		$codes = array(
+			'save' => 'sv',
+			'up'   => 'up',
+		);
 		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-		$key   = 'sclt_cv_' . ( 'up' === $bucket ? 'up' : 'dz' ) . '_' . md5( $ip );
+		$key   = 'sclt_cv_' . ( $codes[ $bucket ] ?? 'dz' ) . '_' . md5( $ip );
 		$count = (int) get_transient( $key );
 		if ( $count >= $max ) {
 			return false;
@@ -1130,8 +1552,17 @@ class SCLT_Canvas {
 	private static function posted() {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- the canvas nonce is verified by the callers.
 		$json    = isset( $_POST['sclt_design'] ) && is_string( $_POST['sclt_design'] ) ? wp_unslash( $_POST['sclt_design'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON; whitelisted by sanitize_design().
-		$preview = isset( $_POST['sclt_design_preview'] ) && is_string( $_POST['sclt_design_preview'] ) ? wp_unslash( $_POST['sclt_design_preview'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- data URL; validated by decode_data_url().
-		$nonce   = isset( $_POST['sclt_canvas_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['sclt_canvas_nonce'] ) ) : '';
+		$preview = array();
+		$fields  = array(
+			'front'       => 'sclt_design_preview',
+			'back'        => 'sclt_design_preview_back',
+			'print_front' => 'sclt_design_print',
+			'print_back'  => 'sclt_design_print_back',
+		);
+		foreach ( $fields as $key => $field ) {
+			$preview[ $key ] = isset( $_POST[ $field ] ) && is_string( $_POST[ $field ] ) ? wp_unslash( $_POST[ $field ] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- data URL; validated by decode_data_url().
+		}
+		$nonce = isset( $_POST['sclt_canvas_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['sclt_canvas_nonce'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 		return array( $json, $preview, $nonce );
 	}
@@ -1140,7 +1571,7 @@ class SCLT_Canvas {
 	 * Validate the posted design for a product. Pure apart from nonce + file lookup.
 	 *
 	 * @param string        $json        Design JSON.
-	 * @param string        $preview     Preview data URL.
+	 * @param string|array  $preview     Front preview data URL, or [ front, back, print_front, print_back ].
 	 * @param string        $nonce       Canvas nonce.
 	 * @param array         $settings    Product settings.
 	 * @param callable|null $file_exists File lookup.
@@ -1166,13 +1597,38 @@ class SCLT_Canvas {
 		if ( ! $design['layers'] ) {
 			return null;
 		}
-		$img = self::decode_data_url( $preview, self::max_preview_bytes() );
-		if ( ! is_array( $img ) ) {
-			return $img;
+		$posted = is_array( $preview ) ? $preview : array( 'front' => $preview );
+		$used   = array_unique( array_column( $design['layers'], 'side' ) );
+		$images = array();
+		$prints = array();
+		foreach ( array( 'front', 'back' ) as $side ) {
+			if ( ! in_array( $side, $used, true ) ) {
+				continue;
+			}
+			$img = self::decode_data_url( $posted[ $side ] ?? '', self::max_preview_bytes() );
+			if ( ! is_array( $img ) ) {
+				return $img;
+			}
+			$images[ $side ] = $img;
+			// The print-ready PNG is optional (older pages do not send it), but it must be
+			// a real PNG when it is sent.
+			$print = $posted[ 'print_' . $side ] ?? '';
+			if ( is_string( $print ) && '' !== $print ) {
+				$pimg = self::decode_data_url( $print, self::max_print_bytes() );
+				if ( ! is_array( $pimg ) ) {
+					return $pimg;
+				}
+				if ( 'png' !== $pimg['ext'] ) {
+					return __( 'The print file could not be read. Please try again.', 'storecanvas-lite' );
+				}
+				$prints[ $side ] = $pimg;
+			}
 		}
 		return array(
 			'design' => $design,
-			'image'  => $img,
+			'image'  => reset( $images ),
+			'images' => $images,
+			'prints' => $prints,
 		);
 	}
 
@@ -1213,15 +1669,33 @@ class SCLT_Canvas {
 		if ( ! is_array( $result ) ) {
 			return $cart_item_data;
 		}
-		$preview = self::store_preview( $result['image'] );
-		if ( '' === $preview ) {
+		$images   = isset( $result['images'] ) ? $result['images'] : array( 'front' => $result['image'] );
+		$previews = array();
+		foreach ( $images as $side => $img ) {
+			$name = self::store_preview( $img );
+			if ( '' === $name ) {
+				return $cart_item_data;
+			}
+			$previews[ $side ] = $name;
+		}
+		$prints = array();
+		foreach ( (array) ( $result['prints'] ?? array() ) as $side => $img ) {
+			$name = self::store_preview( $img );
+			if ( '' !== $name ) {
+				$prints[ $side ] = $name;
+			}
+		}
+		$preview = reset( $previews );
+		if ( ! $preview ) {
 			return $cart_item_data;
 		}
 		$cart_item_data[ self::CART_KEY ] = array(
-			'v'       => 1,
-			'layers'  => $result['design']['layers'],
-			'files'   => $result['design']['files'],
-			'preview' => $preview,
+			'v'        => 2,
+			'layers'   => $result['design']['layers'],
+			'files'    => $result['design']['files'],
+			'preview'  => $preview,
+			'previews' => $previews,
+			'prints'   => $prints,
 		);
 		$cart_item_data['unique_key']     = md5( $preview . wp_rand() );
 		return $cart_item_data;
@@ -1278,25 +1752,73 @@ class SCLT_Canvas {
 	 * @return string
 	 */
 	public static function summary( $design ) {
-		$text  = 0;
-		$image = 0;
+		$count = array();
 		foreach ( (array) ( $design['layers'] ?? array() ) as $l ) {
-			if ( 'image' === ( $l['type'] ?? '' ) ) {
-				++$image;
-			} else {
-				++$text;
+			$side = 'back' === ( $l['side'] ?? '' ) ? 'back' : 'front';
+			$type = in_array( $l['type'] ?? '', array( 'image', 'clipart' ), true ) ? $l['type'] : 'text';
+			if ( ! isset( $count[ $side ] ) ) {
+				$count[ $side ] = array(
+					'text'    => 0,
+					'image'   => 0,
+					'clipart' => 0,
+				);
 			}
+			++$count[ $side ][ $type ];
 		}
-		$parts = array();
-		if ( $text ) {
-			/* translators: %d: number of text layers */
-			$parts[] = sprintf( _n( '%d text', '%d texts', $text, 'storecanvas-lite' ), $text );
+		$labels = self::side_labels();
+		$out    = array();
+		foreach ( array( 'front', 'back' ) as $side ) {
+			if ( empty( $count[ $side ] ) ) {
+				continue;
+			}
+			$c     = $count[ $side ];
+			$parts = array();
+			if ( $c['text'] ) {
+				/* translators: %d: number of text layers */
+				$parts[] = sprintf( _n( '%d text', '%d texts', $c['text'], 'storecanvas-lite' ), $c['text'] );
+			}
+			if ( $c['image'] ) {
+				/* translators: %d: number of image layers */
+				$parts[] = sprintf( _n( '%d image', '%d images', $c['image'], 'storecanvas-lite' ), $c['image'] );
+			}
+			if ( $c['clipart'] ) {
+				/* translators: %d: number of clip-art layers */
+				$parts[] = sprintf( _n( '%d clip-art', '%d clip-art', $c['clipart'], 'storecanvas-lite' ), $c['clipart'] );
+			}
+			$out[ $side ] = implode( ', ', $parts );
 		}
-		if ( $image ) {
-			/* translators: %d: number of image layers */
-			$parts[] = sprintf( _n( '%d image', '%d images', $image, 'storecanvas-lite' ), $image );
+		if ( ! isset( $out['back'] ) ) {
+			return $out['front'] ?? '';
 		}
-		return implode( ', ', $parts );
+		$lines = array();
+		foreach ( $out as $side => $text ) {
+			$lines[] = $labels[ $side ] . ': ' . $text;
+		}
+		return implode( '; ', $lines );
+	}
+
+	/**
+	 * Preview <img> tags for every side of a design.
+	 *
+	 * @param array $design Stored design.
+	 * @param int   $width  CSS width.
+	 * @param int   $ttl    Link lifetime.
+	 * @return string
+	 */
+	public static function preview_imgs( $design, $width, $ttl ) {
+		$out    = array();
+		$labels = self::side_labels();
+		$files  = self::side_files( $design, 'previews' );
+		foreach ( $files as $side => $name ) {
+			$img = self::preview_img( $name, $width, $ttl );
+			if ( '' === $img ) {
+				continue;
+			}
+			$out[] = count( $files ) > 1
+				? '<span style="display:inline-block;margin:0 6px 4px 0;text-align:center;">' . $img . '<br /><small>' . esc_html( $labels[ $side ] ) . '</small></span>'
+				: $img;
+		}
+		return implode( '', $out );
 	}
 
 	public function display_item_data( $item_data, $cart_item ) {
@@ -1380,7 +1902,7 @@ class SCLT_Canvas {
 			// Email templates strip <img> from item meta: link here, picture via email_item_preview().
 			$display = esc_html( self::summary( $design ) ) . ' <a href="' . esc_url( self::file_url( $design['preview'], $ttl ) ) . '">' . esc_html__( 'View design', 'storecanvas-lite' ) . '</a>';
 		} else {
-			$display = '<p>' . self::preview_img( $design['preview'], 120, $ttl ) . '<br />' . esc_html( self::summary( $design ) ) . '</p>';
+			$display = '<p>' . self::preview_imgs( $design, 120, $ttl ) . '<br />' . esc_html( self::summary( $design ) ) . '</p>';
 		}
 
 		$formatted['sclt_design'] = (object) array(
@@ -1420,7 +1942,7 @@ class SCLT_Canvas {
 			return;
 		}
 		$ttl = (int) apply_filters( 'sclt_canvas_order_link_ttl', 60 * DAY_IN_SECONDS );
-		echo '<div class="sclt-email-design" style="margin-top:6px;">' . wp_kses_post( self::preview_img( $design['preview'], 120, $ttl ) ) . '</div>';
+		echo '<div class="sclt-email-design" style="margin-top:6px;">' . wp_kses_post( self::preview_imgs( $design, 120, $ttl ) ) . '</div>';
 	}
 
 	/**
@@ -1440,9 +1962,26 @@ class SCLT_Canvas {
 		}
 		echo '<div class="sclt-design-files" style="margin-top:6px;">';
 		echo '<strong>' . esc_html__( 'Design files:', 'storecanvas-lite' ) . '</strong> ';
-		$links   = array();
-		$links[] = '<a href="' . esc_url( self::file_url( $design['preview'], HOUR_IN_SECONDS, true ) ) . '">' . esc_html__( 'Preview (PNG)', 'storecanvas-lite' ) . '</a>';
-		$n       = 0;
+		$links    = array();
+		$labels   = self::side_labels();
+		$previews = self::side_files( $design, 'previews' );
+		$prints   = self::side_files( $design, 'prints' );
+		$several  = count( $previews ) > 1;
+		foreach ( $previews as $side => $name ) {
+			$links[] = '<a href="' . esc_url( self::file_url( $name, HOUR_IN_SECONDS, true ) ) . '">' . esc_html(
+				$several
+					/* translators: %s: side of the product, e.g. Front */
+					? sprintf( __( '%s preview (PNG)', 'storecanvas-lite' ), $labels[ $side ] )
+					: __( 'Preview (PNG)', 'storecanvas-lite' )
+			) . '</a>';
+			if ( isset( $prints[ $side ] ) ) {
+				$links[] = '<a href="' . esc_url( self::file_url( $prints[ $side ], HOUR_IN_SECONDS, true, 'print-' . $side . '-' . substr( $prints[ $side ], 0, 8 ) . '.png' ) ) . '">' . esc_html(
+					/* translators: %s: side of the product, e.g. Front */
+					sprintf( __( '%s print file (PNG)', 'storecanvas-lite' ), $labels[ $side ] )
+				) . '</a>';
+			}
+		}
+		$n = 0;
 		foreach ( (array) $design['files'] as $f ) {
 			++$n;
 			/* translators: %d: uploaded image number */
@@ -1454,7 +1993,8 @@ class SCLT_Canvas {
 			if ( 'text' === ( $l['type'] ?? '' ) && isset( $l['text'] ) ) {
 				$fonts   = self::fonts();
 				$font    = $fonts[ $l['font'] ?? 'sans' ]['label'] ?? '';
-				$texts[] = '“' . $l['text'] . '” (' . $font . ', ' . ( $l['color'] ?? '' ) . ')';
+				$extra   = ! empty( $l['ow'] ) && ! empty( $l['outline'] ) ? ', ' . __( 'outline', 'storecanvas-lite' ) . ' ' . $l['outline'] : '';
+				$texts[] = '“' . $l['text'] . '” (' . $font . ', ' . ( $l['color'] ?? '' ) . $extra . ')';
 			}
 		}
 		if ( $texts ) {
@@ -1468,21 +2008,74 @@ class SCLT_Canvas {
 	/* ------------------------------------------------------------------ */
 
 	/**
+	 * One side's print-area editor (numbers plus a box drawn on the side's photo).
+	 *
+	 * @param string $side front|back.
+	 * @param array  $area Print area.
+	 * @param string $bg   Photo URL ('' for none).
+	 */
+	private static function render_side_editor( $side, $area, $bg ) {
+		$name   = 'front' === $side ? 'sclt_canvas[area]' : 'sclt_canvas[back][area]';
+		$labels = array(
+			'x' => __( 'Left', 'storecanvas-lite' ),
+			'y' => __( 'Top', 'storecanvas-lite' ),
+			'w' => __( 'Width', 'storecanvas-lite' ),
+			'h' => __( 'Height', 'storecanvas-lite' ),
+		);
+		?>
+		<div class="sclt-canvas-side" data-side="<?php echo esc_attr( $side ); ?>" style="display:inline-block;vertical-align:top;margin:0 16px 12px 0;max-width:360px;">
+			<p style="margin:0 0 4px;"><strong><?php echo esc_html( self::side_labels()[ $side ] ); ?></strong></p>
+			<p style="margin:0 0 6px;">
+				<?php foreach ( $labels as $k => $label ) : ?>
+					<label class="sclt-inline"><?php echo esc_html( $label ); ?> <input type="number" class="sclt-canvas-area" data-k="<?php echo esc_attr( $k ); ?>" name="<?php echo esc_attr( $name . '[' . $k . ']' ); ?>" min="0" max="100" step="any" value="<?php echo esc_attr( (string) $area[ $k ] ); ?>" style="width:64px;" /></label>
+				<?php endforeach; ?>
+			</p>
+			<div class="sclt-canvas-editor__box" style="position:relative;display:<?php echo $bg ? 'inline-block' : 'none'; ?>;max-width:360px;line-height:0;touch-action:none;user-select:none;">
+				<img class="sclt-canvas-editor__img" src="<?php echo esc_url( $bg ? $bg : 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==' ); ?>" alt="" style="max-width:100%;height:auto;display:block;" draggable="false" />
+				<div class="sclt-canvas-editor__rect" tabindex="0" aria-label="<?php esc_attr_e( 'Print area. Arrow keys move it; Shift and arrow keys resize it.', 'storecanvas-lite' ); ?>" style="position:absolute;border:2px dashed #2271b1;background:rgba(34,113,177,.15);cursor:move;box-sizing:border-box;">
+					<span class="sclt-canvas-editor__safe" style="position:absolute;border:1px dashed #d63638;pointer-events:none;"></span>
+					<span class="sclt-canvas-editor__handle" style="position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:#2271b1;border-radius:2px;cursor:nwse-resize;"></span>
+				</div>
+			</div>
+			<?php if ( ! $bg ) : ?>
+				<p class="description sclt-canvas-editor__none"><?php echo esc_html( 'front' === $side ? __( 'Set a product image to draw the print area on it. The numbers above work without one.', 'storecanvas-lite' ) : __( 'Choose a back photo to draw the print area on it.', 'storecanvas-lite' ) ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Canvas section of the StoreCanvas Lite product tab.
 	 *
 	 * @param int $product_id Product ID.
 	 */
 	public static function render_admin_section( $product_id ) {
-		$s   = self::get_settings( $product_id );
-		$img = (int) get_post_thumbnail_id( $product_id );
-		$bg  = $img ? (string) wp_get_attachment_image_url( $img, 'medium_large' ) : '';
+		$s       = self::get_settings( $product_id );
+		$img     = (int) get_post_thumbnail_id( $product_id );
+		$bg      = $img ? (string) wp_get_attachment_image_url( $img, 'medium_large' ) : '';
+		$back_id = (int) $s['back']['image_id'];
+		$back_bg = $back_id ? (string) wp_get_attachment_image_url( $back_id, 'medium_large' ) : '';
+		$tpls    = self::templates();
 		?>
-		<div class="options_group sclt-admin-section sclt-canvas-admin">
+		<div class="options_group sclt-admin-section sclt-canvas-admin" data-sclt-templates="<?php echo esc_attr( wp_json_encode( $tpls ) ); ?>">
 			<h4 style="padding-left:12px;"><?php esc_html_e( 'Customer design canvas', 'storecanvas-lite' ); ?></h4>
 			<p class="form-field" style="padding-left:12px;">
-				<label class="sclt-inline"><input type="checkbox" name="sclt_canvas[enabled]" value="1" <?php checked( $s['enabled'] ); ?> /> <?php esc_html_e( 'Let customers design this product (text and images on the main product image)', 'storecanvas-lite' ); ?></label><br />
+				<label class="sclt-inline"><input type="checkbox" name="sclt_canvas[enabled]" value="1" <?php checked( $s['enabled'] ); ?> /> <?php esc_html_e( 'Let customers design this product (text, images and clip-art on the product photo)', 'storecanvas-lite' ); ?></label><br />
 				<label class="sclt-inline"><input type="checkbox" name="sclt_canvas[required]" value="1" <?php checked( $s['required'] ); ?> /> <?php esc_html_e( 'A design is required to add to cart', 'storecanvas-lite' ); ?></label><br />
-				<label class="sclt-inline"><input type="checkbox" name="sclt_canvas[allow_upload]" value="1" <?php checked( $s['allow_upload'] ); ?> /> <?php esc_html_e( 'Allow image uploads (PNG/JPEG)', 'storecanvas-lite' ); ?></label>
+				<label class="sclt-inline"><input type="checkbox" name="sclt_canvas[allow_upload]" value="1" <?php checked( $s['allow_upload'] ); ?> /> <?php esc_html_e( 'Allow image uploads (PNG/JPEG)', 'storecanvas-lite' ); ?></label><br />
+				<label class="sclt-inline"><input type="checkbox" name="sclt_canvas[allow_clipart]" value="1" <?php checked( $s['allow_clipart'] ); ?> /> <?php esc_html_e( 'Offer the built-in clip-art', 'storecanvas-lite' ); ?></label><br />
+				<label class="sclt-inline"><input type="checkbox" name="sclt_canvas[follow_variation]" value="1" <?php checked( $s['follow_variation'] ); ?> /> <?php esc_html_e( 'Front follows the chosen variation photo (for example the shirt color)', 'storecanvas-lite' ); ?></label>
+			</p>
+			<p class="form-field" style="padding-left:12px;">
+				<label class="sclt-inline"><?php esc_html_e( 'Start from a template', 'storecanvas-lite' ); ?>
+					<select class="sclt-canvas-template">
+						<option value=""><?php esc_html_e( 'Choose…', 'storecanvas-lite' ); ?></option>
+						<?php foreach ( $tpls as $key => $tpl ) : ?>
+							<option value="<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $tpl['label'] ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+				<span class="description"><?php esc_html_e( 'Fills in the print areas, back side, safe margin and canvas shape below. Adjust them after.', 'storecanvas-lite' ); ?></span>
 			</p>
 			<p class="form-field sclt-canvas-nums" style="padding-left:12px;">
 				<label class="sclt-inline"><?php esc_html_e( 'Max layers', 'storecanvas-lite' ); ?> <input type="number" name="sclt_canvas[max_layers]" min="1" max="30" step="1" value="<?php echo esc_attr( (string) $s['max_layers'] ); ?>" style="width:70px;" /></label>
@@ -1492,33 +2085,22 @@ class SCLT_Canvas {
 				echo esc_html( sprintf( __( 'Design fee (%s)', 'storecanvas-lite' ), get_woocommerce_currency_symbol() ) );
 				?>
 				<input type="number" name="sclt_canvas[fee]" min="0" step="0.01" value="<?php echo esc_attr( (string) $s['fee'] ); ?>" style="width:90px;" /></label>
+				<label class="sclt-inline"><?php esc_html_e( 'Safe margin (% of the print area)', 'storecanvas-lite' ); ?> <input type="number" class="sclt-canvas-safe" name="sclt_canvas[safe]" min="0" max="20" step="any" value="<?php echo esc_attr( (string) $s['safe'] ); ?>" style="width:70px;" /></label>
+				<label class="sclt-inline"><?php esc_html_e( 'Canvas shape without a photo (height ÷ width)', 'storecanvas-lite' ); ?> <input type="number" class="sclt-canvas-ratio" name="sclt_canvas[ratio]" min="0.3" max="2" step="any" value="<?php echo esc_attr( (string) $s['ratio'] ); ?>" style="width:80px;" /></label>
 			</p>
-			<p class="form-field sclt-canvas-nums" style="padding-left:12px;">
-				<span class="description"><?php esc_html_e( 'Print area, in % of the main product image. Drag or resize the box on the image, or type the numbers.', 'storecanvas-lite' ); ?></span><br />
-				<?php
-				$labels = array(
-					'x' => __( 'Left', 'storecanvas-lite' ),
-					'y' => __( 'Top', 'storecanvas-lite' ),
-					'w' => __( 'Width', 'storecanvas-lite' ),
-					'h' => __( 'Height', 'storecanvas-lite' ),
-				);
-				foreach ( $labels as $k => $label ) :
-					?>
-					<label class="sclt-inline"><?php echo esc_html( $label ); ?> <input type="number" class="sclt-canvas-area" data-k="<?php echo esc_attr( $k ); ?>" name="sclt_canvas[area][<?php echo esc_attr( $k ); ?>]" min="0" max="100" step="0.5" value="<?php echo esc_attr( (string) $s['area'][ $k ] ); ?>" style="width:70px;" /></label>
-				<?php endforeach; ?>
+			<p class="form-field" style="padding-left:12px;">
+				<label class="sclt-inline"><input type="checkbox" class="sclt-canvas-back-on" name="sclt_canvas[back][enabled]" value="1" <?php checked( $s['back']['enabled'] ); ?> /> <?php esc_html_e( 'Customers can also design the back', 'storecanvas-lite' ); ?></label>
+				<input type="hidden" class="sclt-canvas-back-id" name="sclt_canvas[back][image_id]" value="<?php echo esc_attr( (string) $back_id ); ?>" />
+				<button type="button" class="button sclt-canvas-back-pick"><?php esc_html_e( 'Choose back photo', 'storecanvas-lite' ); ?></button>
+				<button type="button" class="button-link sclt-canvas-back-clear"<?php echo $back_id ? '' : ' style="display:none;"'; ?>><?php esc_html_e( 'Remove back photo', 'storecanvas-lite' ); ?></button>
 			</p>
 			<div class="sclt-canvas-editor" style="padding:0 12px 12px;">
-				<?php if ( $bg ) : ?>
-					<div class="sclt-canvas-editor__box" style="position:relative;display:inline-block;max-width:360px;line-height:0;touch-action:none;user-select:none;">
-						<img src="<?php echo esc_url( $bg ); ?>" alt="" style="max-width:100%;height:auto;display:block;" draggable="false" />
-						<div class="sclt-canvas-editor__rect" tabindex="0" aria-label="<?php esc_attr_e( 'Print area. Arrow keys move it; Shift and arrow keys resize it.', 'storecanvas-lite' ); ?>" style="position:absolute;border:2px dashed #2271b1;background:rgba(34,113,177,.15);cursor:move;box-sizing:border-box;">
-							<span class="sclt-canvas-editor__handle" style="position:absolute;right:-7px;bottom:-7px;width:14px;height:14px;background:#2271b1;border-radius:2px;cursor:nwse-resize;"></span>
-						</div>
-					</div>
-				<?php else : ?>
-					<p class="description"><?php esc_html_e( 'Set a product image to draw the print area on it. The numbers above work without one.', 'storecanvas-lite' ); ?></p>
-				<?php endif; ?>
-				<p class="description" style="margin-top:8px;"><?php esc_html_e( 'Need several views or print areas, clipart, templates or print-ready PDF/SVG files? Those are in the paid StoreCanvas plugin.', 'storecanvas-lite' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Print area per side, in % of that side\'s photo. Drag or resize the box, or type the numbers. The red dashed line is the safe margin.', 'storecanvas-lite' ); ?></p>
+				<?php
+				self::render_side_editor( 'front', $s['area'], $bg );
+				self::render_side_editor( 'back', $s['back']['area'], $back_bg );
+				?>
+				<p class="description" style="margin-top:8px;"><?php esc_html_e( 'Need print spots with their own prices, print shop pricing, a 3D preview, vector production files or proof approval? Those are in StoreCanvas Pro.', 'storecanvas-lite' ); ?></p>
 			</div>
 		</div>
 		<?php
@@ -1533,8 +2115,11 @@ class SCLT_Canvas {
 	public static function save_settings( $product_id ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- product edit screen (core nonce); every key is clamped by sanitize_settings().
 		$raw = isset( $_POST['sclt_canvas'] ) && is_array( $_POST['sclt_canvas'] ) ? wp_unslash( $_POST['sclt_canvas'] ) : array();
-		if ( ! isset( $raw['allow_upload'] ) ) {
-			$raw['allow_upload'] = 0;
+		// Unticked boxes are not posted; these default to on, so store the "off".
+		foreach ( array( 'allow_upload', 'allow_clipart', 'follow_variation' ) as $key ) {
+			if ( ! isset( $raw[ $key ] ) ) {
+				$raw[ $key ] = 0;
+			}
 		}
 		update_post_meta( (int) $product_id, self::META, self::sanitize_settings( $raw ) );
 	}

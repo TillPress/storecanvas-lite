@@ -12,7 +12,7 @@
  * Customer design canvas: removes the per-product canvas settings, the signing
  * secret and folder key options, the daily cleanup event, the guest upload
  * throttle transients and every file in uploads/sclt-designs (customer previews
- * and uploaded images, ordered or not). Download the design files of open orders
+ * and uploaded images, ordered or not, plus designs customers saved under "My designs"). Download the design files of open orders
  * first, or define SCLT_KEEP_DESIGNS_ON_UNINSTALL as true in wp-config.php to keep
  * the files. The order-item design record (_sclt_design) stays with the order.
  *
@@ -53,6 +53,7 @@ delete_metadata( 'user', 0, 'sclt_offer_dismissed', '', true );
 
 // Customer design canvas.
 delete_post_meta_by_key( '_sclt_canvas' );
+delete_metadata( 'user', 0, '_sclt_saved_designs', '', true );
 wp_clear_scheduled_hook( 'sclt_canvas_cleanup' );
 delete_option( 'sclt_canvas_secret' );
 

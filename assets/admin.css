@@ -48,3 +48,6 @@
 }
 .woocommerce_options_panel .sclt-canvas-admin input[type="number"] { float: none !important; }
 .sclt-canvas-editor__rect:focus { outline: 2px solid #135e96; outline-offset: 1px; }
+.woocommerce_options_panel .sclt-canvas-admin select,
+.woocommerce_options_panel .sclt-canvas-admin input[type="checkbox"] { float: none !important; width: auto !important; margin: 0; }
+.woocommerce_options_panel .sclt-canvas-admin .description { margin-left: 0 !important; }

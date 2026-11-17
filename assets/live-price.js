@@ -117,14 +117,40 @@
 		return fixed + symbol;
 	}
 
+	// Base price set at runtime: the sc:base-price event, or the WooCommerce variation the
+	// customer picked. null means "use the localized scltLivePrice.basePrice".
+	var baseOverride = null;
+	// Named per-item extras and one-time charges from other scripts (sc:extra-price).
+	var extras = {};
+	// Quantity reported by another script (sc:qty), e.g. a size grid that posts several sizes.
+	var qtyOverride = null;
+
+	function productId() {
+		var c = cfg();
+		return c && c.productId ? String(c.productId) : '';
+	}
+
+	function forOtherProduct(d) {
+		return !!(d && typeof d === 'object' && d.productId != null && productId() && String(d.productId) !== productId());
+	}
+
+	function extrasTotals() {
+		var tot = { amount: 0, once: 0 };
+		Object.keys(extras).forEach(function (k) {
+			tot.amount += extras[k].amount;
+			tot.once += extras[k].once;
+		});
+		return tot;
+	}
+
 	function calc() {
 		var c = cfg();
 		if (!c) return null;
-		var base = parseFloat(c.basePrice) || 0;
+		var base = baseOverride !== null ? baseOverride : parseFloat(c.basePrice) || 0;
 		var fields = c.fields || [];
 		var root = document.querySelector('.sclt-options');
 		var values = readValues(root);
-		var qty = qtyValue();
+		var qty = qtyOverride !== null ? qtyOverride : qtyValue();
 		// sclt_price_extra is a per-unit total; WooCommerce multiplies the unit price by the cart
 		// quantity. Sum the per-unit field extras exactly as the server does.
 		var unitExtra = 0;
@@ -139,6 +165,8 @@
 			if (val === undefined) val = '';
 			unitExtra += fieldExtra(f, val, base);
 		});
+		var ex = extrasTotals();
+		unitExtra += ex.amount;
 		// The server floors a discounted unit price at zero; mirror that so the preview agrees.
 		var unit = base + unitExtra;
 		if (unit < 0) unit = 0;
@@ -151,7 +179,8 @@
 			tier: tier,
 			saving: undiscounted - unit,
 			unit: unit,
-			line: unit * qty,
+			line: unit * qty + ex.once,
+			once: ex.once,
 			qty: qty,
 		};
 	}
@@ -237,7 +266,7 @@
 			' = <strong class="sclt-live-total">' +
 			formatMoney(r.unit) +
 			'</strong>';
-		if (r.qty > 1) {
+		if (r.qty > 1 || r.once > 0.00001) {
 			html +=
 				' <span class="sclt-live-line">(' +
 				(c.i18n.line || 'line') +
@@ -277,9 +306,86 @@
 		});
 	}
 
+	// Read a price out of an sc:base-price payload: a number, a numeric string, or an object
+	// { price, productId }. null for anything unusable or for another product's payload.
+	function priceFromPayload(p) {
+		if (p && typeof p === 'object') {
+			if (forOtherProduct(p)) return null;
+			p = p.price;
+		}
+		if (p === null || p === undefined || p === '') return null;
+		var n = parseFloat(p);
+		return isNaN(n) || n < 0 ? null : n;
+	}
+
+	// Events fired from inside another product's cart form are not ours.
+	function foreignTarget(t) {
+		if (!t || !t.closest || t === document || t === window) return false;
+		var form = t.closest('form.cart');
+		if (!form) return false;
+		var mine = document.querySelector('.sclt-options');
+		var myForm = mine ? mine.closest('form.cart') : null;
+		return !!myForm && form !== myForm;
+	}
+
+	function setBase(p, target) {
+		if (target && foreignTarget(target)) return;
+		if (p === 'reset') {
+			baseOverride = null;
+		} else {
+			var n = priceFromPayload(p);
+			if (n === null) return;
+			baseOverride = n;
+		}
+		update();
+	}
+
 	function bind() {
 		var c = cfg();
 		if (!hasPricing(c)) return;
+		// Themes and other scripts set the base price with
+		//   el.dispatchEvent(new CustomEvent('sc:base-price', { bubbles: true, detail: 12.5 }))
+		//   jQuery(el).trigger('sc:base-price', [12.5])
+		// detail may be { price: 12.5, productId: 123 }; null or '' goes back to the product price.
+		document.addEventListener('sc:base-price', function (e) {
+			var d = e.detail;
+			setBase(d === null || d === '' ? 'reset' : d, e.target);
+		});
+		// Per-item extras and one-time charges:
+		//   document.dispatchEvent(new CustomEvent('sc:extra-price', { detail: {
+		//     productId: 23, key: 'engraving', amount: 3.5, once: 10 } }))
+		document.addEventListener('sc:extra-price', function (e) {
+			var d = e.detail;
+			if (!d || typeof d !== 'object' || forOtherProduct(d)) return;
+			var amount = parseFloat(d.amount);
+			var once = parseFloat(d.once);
+			extras[String(d.key || 'extra')] = {
+				amount: isNaN(amount) || amount < 0 ? 0 : amount,
+				once: isNaN(once) || once < 0 ? 0 : once,
+			};
+			update();
+		});
+		document.addEventListener('sc:qty', function (e) {
+			var d = e.detail || {};
+			if (forOtherProduct(d)) return;
+			var n = parseInt(d.qty, 10);
+			qtyOverride = isNaN(n) || n < 1 ? null : n;
+			update();
+		});
+		if (typeof window.jQuery === 'function') {
+			var $ = window.jQuery;
+			$(document).on('sc:base-price', function (e, p) {
+				if (e.originalEvent) return; // native event, handled above.
+				setBase(p === null || p === '' || p === undefined ? 'reset' : p, e.target);
+			});
+			// WooCommerce variation forms: follow the picked variation's price.
+			$(document).on('found_variation', 'form.variations_form', function (e, variation) {
+				if (variation && variation.display_price !== undefined) setBase(variation.display_price, e.target);
+			});
+			$(document).on('reset_data', 'form.variations_form', function (e) {
+				setBase('reset', e.target);
+			});
+		}
 		document.addEventListener('change', function (e) {
 			if (!e.target) return;
 			if (e.target.closest && (e.target.closest('.sclt-options') || e.target.matches('input.qty') || e.target.name === 'quantity')) {
